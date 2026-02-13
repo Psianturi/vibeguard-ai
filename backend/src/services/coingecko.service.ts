@@ -9,19 +9,43 @@ export class CoinGeckoService {
     this.apiKey = process.env.COINGECKO_API_KEY || '';
   }
 
+  private formatAxiosError(error: any): string {
+    const status = error?.response?.status;
+    const statusText = error?.response?.statusText;
+    const message = error?.message;
+    return [status ? `status ${status}` : null, statusText, message].filter(Boolean).join(' - ');
+  }
+
   async getPrice(tokenId: string): Promise<PriceData> {
     try {
-      const response = await axios.get(`${this.baseUrl}/simple/price`, {
-        params: {
-          ids: tokenId,
-          vs_currencies: 'usd',
-          include_24hr_vol: true,
-          include_24hr_change: true
-        },
-        headers: this.apiKey ? { 'x-cg-pro-api-key': this.apiKey } : {}
-      });
+      const params = {
+        ids: tokenId,
+        vs_currencies: 'usd',
+        include_24hr_vol: true,
+        include_24hr_change: true
+      };
+
+      // Try with pro key header if present; if it fails, retry without it.
+      let response: any;
+      try {
+        response = await axios.get(`${this.baseUrl}/simple/price`, {
+          params,
+          headers: this.apiKey ? { 'x-cg-pro-api-key': this.apiKey } : {},
+          timeout: 15000
+        });
+      } catch (error: any) {
+        // Some setups return 400/401/403 when a key is invalid or restricted.
+        // Public endpoint often works without a key, so we retry once.
+        response = await axios.get(`${this.baseUrl}/simple/price`, {
+          params,
+          timeout: 15000
+        });
+      }
 
       const data = response.data[tokenId];
+      if (!data || typeof data.usd !== 'number') {
+        throw new Error(`CoinGecko: missing data for tokenId='${tokenId}'`);
+      }
       return {
         token: tokenId,
         price: data.usd,
@@ -29,8 +53,9 @@ export class CoinGeckoService {
         priceChange24h: data.usd_24h_change
       };
     } catch (error) {
-      console.error('CoinGecko error:', error);
-      throw error;
+      const msg = this.formatAxiosError(error);
+      console.error('CoinGecko error:', msg);
+      throw new Error(msg || 'CoinGecko request failed');
     }
   }
 }

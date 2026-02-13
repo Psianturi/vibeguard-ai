@@ -22,6 +22,21 @@ export class KalibrService {
     this.sentimentBadThreshold = Number(process.env.SENTIMENT_BAD_THRESHOLD ?? 30);
   }
 
+  private formatAxiosError(error: any): string {
+    const status = error?.response?.status;
+    const statusText = error?.response?.statusText;
+    const message = error?.message;
+    const providerMsg = error?.response?.data?.error?.message;
+    return [
+      status ? `status ${status}` : null,
+      statusText,
+      providerMsg,
+      message
+    ]
+      .filter(Boolean)
+      .join(' - ');
+  }
+
   private getKalibrHeaders() {
     return {
       'X-API-Key': this.apiKey,
@@ -110,8 +125,8 @@ export class KalibrService {
   }
 
   async analyzeRisk(sentiment: SentimentData, price: PriceData): Promise<RiskAnalysis> {
-    try {
-      const prompt = `Analyze crypto risk:
+    // Prepare prompt once.
+    const prompt = `Analyze crypto risk:
 Token: ${sentiment.token}
 Sentiment Score: ${sentiment.score}/100
 Price Change 24h: ${price.priceChange24h}%
@@ -119,11 +134,14 @@ Volume 24h: $${price.volume24h}
 
 Should we exit position? Respond with JSON: {riskScore: 0-100, shouldExit: boolean, reason: string}`;
 
-      // If Kalibr tenant is configured, use Kalibr Intelligence to pick the model.
-      // Otherwise, fall back to a simple rule-based model selection.
+    // If Kalibr tenant is configured, use Kalibr Intelligence to pick the model.
+    let traceId: string = globalThis.crypto?.randomUUID?.() ?? String(Date.now());
+    let chosenModel = sentiment.score < this.sentimentBadThreshold ? this.modelHigh : this.modelLow;
+
+    try {
       const decision = await this.decideModel();
-      const chosenModel = decision?.modelId ?? (sentiment.score < this.sentimentBadThreshold ? this.modelHigh : this.modelLow);
-      const traceId = decision?.traceId ?? (globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
+      chosenModel = decision?.modelId ?? chosenModel;
+      traceId = decision?.traceId ?? traceId;
 
       const raw = await this.callGemini(chosenModel, prompt);
 
@@ -136,18 +154,21 @@ Should we exit position? Respond with JSON: {riskScore: 0-100, shouldExit: boole
 
       return { ...result, aiModel: chosenModel };
     } catch (error) {
-      console.error('Kalibr error:', error);
+      const msg = this.formatAxiosError(error);
+      console.error('Kalibr/Gemini error:', msg);
 
-      // Best-effort: report failure if we have enough info.
-      const traceId = globalThis.crypto?.randomUUID?.() ?? String(Date.now());
-      const chosenModel = this.modelLow;
-      await this.reportOutcome({ traceId, modelId: chosenModel, success: false, reason: 'exception' });
+      await this.reportOutcome({
+        traceId,
+        modelId: chosenModel,
+        success: false,
+        reason: msg ? msg.slice(0, 120) : 'exception'
+      });
 
       return {
         riskScore: 50,
         shouldExit: false,
-        reason: 'Analysis failed',
-        aiModel: 'fallback'
+        reason: msg ? `Analysis failed (${msg})` : 'Analysis failed',
+        aiModel: chosenModel || 'fallback'
       };
     }
   }
