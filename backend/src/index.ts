@@ -13,7 +13,36 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'VibeGuard AI is running' });
+  res.json({
+    status: 'ok',
+    message: 'VibeGuard AI is running',
+    config: {
+      kalibr: {
+        apiKey: Boolean(process.env.KALIBR_API_KEY),
+        tenantId: Boolean(process.env.KALIBR_TENANT_ID),
+        intelligenceUrl: process.env.KALIBR_INTELLIGENCE_URL || 'https://kalibr-intelligence.fly.dev'
+      },
+      gemini: {
+        apiKey: Boolean(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY)
+      },
+      cryptoracle: {
+        apiKey: Boolean(process.env.CRYPTORACLE_API_KEY),
+        baseUrl: process.env.CRYPTORACLE_BASE_URL || 'https://api.cryptoracle.io/v1'
+      },
+      coingecko: {
+        apiKey: Boolean(process.env.COINGECKO_API_KEY)
+      },
+      blockchain: {
+        rpcUrl: Boolean(process.env.BSC_RPC_URL),
+        privateKey: Boolean(process.env.PRIVATE_KEY),
+        vaultAddress: Boolean(process.env.VIBEGUARD_VAULT_ADDRESS)
+      },
+      monitor: {
+        enabled: String(process.env.ENABLE_MONITOR || '').toLowerCase() === 'true',
+        intervalMs: Number(process.env.MONITOR_INTERVAL_MS ?? 30000)
+      }
+    }
+  });
 });
 
 app.use('/api/vibe', vibeRoutes);

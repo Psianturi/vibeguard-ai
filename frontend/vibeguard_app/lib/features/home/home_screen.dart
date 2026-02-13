@@ -14,6 +14,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _tokenController = TextEditingController(text: 'BTC');
   final _tokenIdController = TextEditingController(text: 'bitcoin');
 
+  void _applyPreset({required String symbol, required String coinGeckoId}) {
+    setState(() {
+      _tokenController.text = symbol;
+      _tokenIdController.text = coinGeckoId;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final vibeState = ref.watch(vibeNotifierProvider);
@@ -32,6 +39,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('BTC'),
+                          selected:
+                              _tokenController.text.trim().toUpperCase() ==
+                                  'BTC',
+                          onSelected: (_) => _applyPreset(
+                              symbol: 'BTC', coinGeckoId: 'bitcoin'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('BNB'),
+                          selected:
+                              _tokenController.text.trim().toUpperCase() ==
+                                  'BNB',
+                          onSelected: (_) => _applyPreset(
+                              symbol: 'BNB', coinGeckoId: 'binancecoin'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: _tokenController,
                       decoration: const InputDecoration(
@@ -96,7 +125,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 12),
             Text('Model: ${result.analysis.aiModel}'),
             Text('Risk Score: ${result.analysis.riskScore.toStringAsFixed(1)}'),
-            Text('Action: ${result.analysis.shouldExit ? "🚨 EXIT" : "✅ HOLD"}'),
+            Text(
+                'Action: ${result.analysis.shouldExit ? "🚨 EXIT" : "✅ HOLD"}'),
             const SizedBox(height: 8),
             Text(result.analysis.reason),
           ],
