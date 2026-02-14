@@ -33,7 +33,16 @@ class VibeNotifier extends StateNotifier<VibeState> {
   Future<void> checkVibe(String token, String tokenId) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final startedAt = DateTime.now();
       final result = await apiService.checkVibe(token, tokenId);
+
+      // UX: keep a short "scanning" phase before revealing results.
+      final elapsed = DateTime.now().difference(startedAt);
+      const minScan = Duration(seconds: 2);
+      if (elapsed < minScan) {
+        await Future.delayed(minScan - elapsed);
+      }
+
       state = state.copyWith(result: result, isLoading: false);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);

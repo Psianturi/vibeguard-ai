@@ -149,7 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   );
                             },
                       child: vibeState.isLoading
-                          ? const CircularProgressIndicator()
+                          ? const _ScanningButtonLabel()
                           : const Text('Check Vibe'),
                     ),
                   ],
@@ -165,7 +165,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Text(vibeState.error!),
                 ),
               ),
-            if (vibeState.result != null) ...[
+
+            if (vibeState.isLoading) ...[
+              const ScanningVibeMeterWidget(),
+            ] else if (vibeState.result != null) ...[
               VibeMeterWidget(result: vibeState.result!),
               const SizedBox(height: 16),
               _buildAnalysisCard(vibeState.result!),
@@ -182,6 +185,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
+  
 
   Widget _buildEmergencySwapCard(BuildContext context, String userAddress) {
     return Card(
@@ -376,5 +381,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _short(String s) {
     if (s.length <= 12) return s;
     return '${s.substring(0, 6)}...${s.substring(s.length - 4)}';
+  }
+}
+
+class _ScanningButtonLabel extends StatelessWidget {
+  const _ScanningButtonLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        SizedBox(width: 10),
+        Text('Scanning Social Signals...'),
+      ],
+    );
   }
 }
