@@ -9,7 +9,6 @@ import '../../providers/insights_provider.dart' as insights;
 import '../../core/config.dart';
 import '../dashboard/vibe_meter_widget.dart';
 import '../dashboard/sentiment_insights_widget.dart';
-import '../dashboard/chain_selector_widget.dart';
 import '../dashboard/multi_token_dashboard_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -47,13 +46,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     {'symbol': 'XRP', 'id': 'ripple'},
     {'symbol': 'DOGE', 'id': 'dogecoin'},
   ];
-
-  Iterable<String> _coinGeckoIdSuggestions(String query) {
-    final q = query.trim().toLowerCase();
-    final symbol = _tokenController.text.trim().toUpperCase();
-
-    return _coinGeckoIdSuggestionsFor(query: q, symbol: symbol);
-  }
 
   Iterable<String> _coinGeckoIdSuggestionsFor({required String query, required String symbol}) {
     final q = query.trim().toLowerCase();
@@ -308,7 +300,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               _MarketPulseCard(),
               const SizedBox(height: 16),
 
-              _MultiTokenDashboardCard(),
+              _buildMultiTokenDashboardCard(),
               const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -390,7 +382,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 16),
               _buildAnalysisCard(vibeState.result!),
               const SizedBox(height: 16),
-              _SentimentInsightsCard(),
+              _buildSentimentInsightsCard(),
             ],
 
             if (walletState.isConnected && (walletState.address?.isNotEmpty ?? false)) ...[
@@ -641,7 +633,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // Multi-Token Dashboard Card
-  Widget _MultiTokenDashboardCard() {
+  Widget _buildMultiTokenDashboardCard() {
     final multiTokenState = ref.watch(insights.multiTokenProvider);
     
     return MultiTokenDashboardWidget(
@@ -659,7 +651,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
 
-  Widget _SentimentInsightsCard() {
+  Widget _buildSentimentInsightsCard() {
     final insightsState = ref.watch(insights.insightsProvider);
     
     if (insightsState.isLoading) {

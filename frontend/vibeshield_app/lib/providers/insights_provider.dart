@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/vibe_models.dart';
 import '../models/insight_models.dart';
 import '../services/api_service.dart';
 

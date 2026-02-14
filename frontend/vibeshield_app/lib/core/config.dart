@@ -12,7 +12,15 @@ class AppConfig {
     return 'https://vibeguard-ai-production.up.railway.app';
   }
 
-  static String get apiBaseUrl => '$_apiOrigin/api';
+  static String get apiBaseUrl {
+    final origin = _apiOrigin.trim();
+    if (origin.isEmpty) return '/api';
+
+    // Prevent accidental double '/api' when API_BASE_URL is already set to an API root.
+    final normalized = origin.endsWith('/') ? origin.substring(0, origin.length - 1) : origin;
+    if (normalized.endsWith('/api')) return normalized;
+    return '$normalized/api';
+  }
   static const String vibeCheckEndpoint = '/vibe/check';
   static const String executeSwapEndpoint = '/vibe/execute-swap';
 

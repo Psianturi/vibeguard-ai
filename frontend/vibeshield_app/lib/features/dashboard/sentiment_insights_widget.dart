@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../models/vibe_models.dart';
 
 class SentimentInsightsWidget extends StatelessWidget {
   final Map<String, dynamic> insightsData;

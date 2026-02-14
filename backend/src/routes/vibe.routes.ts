@@ -28,6 +28,14 @@ router.get('/debug/models', async (req, res) => {
   }
 });
 
+router.get('/public-config', (req, res) => {
+
+  return res.json({
+    ok: true,
+    walletConnectProjectId: String(process.env.WALLETCONNECT_PROJECT_ID || '').trim()
+  });
+});
+
 router.get('/token-presets', (req, res) => {
   const raw = String(process.env.TOKEN_PRESETS_JSON || '').trim();
   if (!raw) {

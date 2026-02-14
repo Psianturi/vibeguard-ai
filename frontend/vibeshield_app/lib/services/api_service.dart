@@ -63,7 +63,6 @@ class ApiService {
       final chains = (data['chains'] as List?) ?? [];
       return chains.map((e) => ChainInfo.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e) {
-      print('Error fetching chains: $e');
       return _defaultChains;
     }
   }

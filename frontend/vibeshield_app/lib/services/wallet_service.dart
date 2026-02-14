@@ -1,15 +1,21 @@
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import 'package:walletconnect_flutter_v2/walletconnect_flutter_v2.dart';
+import 'package:dio/dio.dart';
+import 'package:reown_appkit/reown_appkit.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/config.dart';
 
 class WalletService {
   static WalletService? _instance;
-  Web3App? _web3App;
+  ReownAppKit? _appKit;
   SessionData? _session;
   String? _currentAddress;
   String? _lastError;
+  String? _resolvedProjectId;
+
+  // Stream controller for connection state changes
+  final _connectionController = StreamController<bool>.broadcast();
+  Stream<bool> get connectionStream => _connectionController.stream;
 
   WalletService._();
 
@@ -23,16 +29,13 @@ class WalletService {
   String? get lastError => _lastError;
 
   Future<void> init() async {
-    if (_web3App != null) return;
+    if (_appKit != null) return;
 
     try {
       _lastError = null;
-      final projectId = AppConfig.walletConnectProjectId.trim();
-      if (projectId.isEmpty) {
-        throw Exception('WalletConnect Project ID is not configured');
-      }
+      final projectId = await _getProjectId();
 
-      _web3App = await Web3App.createInstance(
+      _appKit = await ReownAppKit.createInstance(
         projectId: projectId,
         metadata: const PairingMetadata(
           name: 'VibeShield AI',
@@ -43,12 +46,80 @@ class WalletService {
       );
 
       // Listen to session events
-      _web3App!.onSessionConnect.subscribe(_onSessionConnect);
-      _web3App!.onSessionDelete.subscribe(_onSessionDelete);
+      _appKit!.onSessionConnect.subscribe(_onSessionConnect);
+      _appKit!.onSessionDelete.subscribe(_onSessionDelete);
+
+      await _appKit!.init();
     } catch (e) {
       _lastError = e.toString();
-      debugPrint('WalletConnect init error: $e');
+      debugPrint('Reown AppKit init error: $e');
     }
+  }
+
+  Future<String> _getProjectId() async {
+    final existing = (_resolvedProjectId ?? AppConfig.walletConnectProjectId).trim();
+    if (existing.isNotEmpty) {
+      _resolvedProjectId = existing;
+      return existing;
+    }
+
+    try {
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ));
+
+      final apiBaseUrl = AppConfig.apiBaseUrl.trim();
+      final parsed = Uri.tryParse(apiBaseUrl);
+      final origin = (parsed != null && parsed.hasScheme && parsed.hasAuthority)
+          ? '${parsed.scheme}://${parsed.authority}'
+          : '';
+
+      String joinUrl(String base, String path) {
+        final b = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+        return '$b$path';
+      }
+
+      final candidates = <String>{
+        if (apiBaseUrl.isNotEmpty) joinUrl(apiBaseUrl, '/vibe/public-config'), 
+        if (origin.isNotEmpty) joinUrl(origin, '/api/vibe/public-config'),
+        if (origin.isNotEmpty) joinUrl(origin, '/vibe/public-config'),
+      }.toList();
+
+      int? lastStatus;
+      for (final url in candidates) {
+        try {
+          final res = await dio.get(
+            url,
+            options: Options(
+              validateStatus: (code) => code != null && code >= 200 && code < 500,
+            ),
+          );
+          lastStatus = res.statusCode;
+
+          if (res.statusCode != null && res.statusCode! >= 200 && res.statusCode! < 300) {
+            final data = res.data;
+            if (data is Map) {
+              final pid = (data['walletConnectProjectId'] ?? '').toString().trim();
+              if (pid.isNotEmpty) {
+                _resolvedProjectId = pid;
+                return pid;
+              }
+            }
+          }
+        } catch (_) {
+          // Try next candidate.
+        }
+      }
+
+      debugPrint(
+        'WalletConnect projectId fetch failed (status: ${lastStatus ?? 'n/a'}). Tried: ${candidates.join(', ')}',
+      );
+    } catch (e) {
+      debugPrint('WalletConnect projectId fetch failed: $e');
+    }
+
+    throw Exception('WalletConnect Project ID is not configured');
   }
 
   Future<String?> connect() async {
@@ -56,8 +127,8 @@ class WalletService {
       _lastError = null;
       await init();
 
-      if (_web3App == null) {
-        throw Exception(_lastError ?? 'WalletConnect not initialized');
+      if (_appKit == null) {
+        throw Exception(_lastError ?? 'Reown AppKit not initialized');
       }
 
       // Check if already connected
@@ -66,10 +137,10 @@ class WalletService {
       }
 
       // Create connection
-      final ConnectResponse response = await _web3App!.connect(
+      final ConnectResponse response = await _appKit!.connect(
         requiredNamespaces: {
-          'eip155': const RequiredNamespace(
-            chains: ['eip155:56'], // BSC Mainnet
+          'eip155': RequiredNamespace(
+            chains: ['eip155:${AppConfig.chainId}'],
             methods: ['eth_sendTransaction', 'personal_sign'],
             events: ['chainChanged', 'accountsChanged'],
           ),
@@ -109,13 +180,13 @@ class WalletService {
         }
       }
 
-
       _session = await response.session.future.timeout(const Duration(minutes: 2));
       
       if (_session != null) {
         final accounts = _session!.namespaces['eip155']?.accounts ?? [];
         if (accounts.isNotEmpty) {
           _currentAddress = accounts.first.split(':').last;
+          _connectionController.add(true);
           return _currentAddress;
         }
       }
@@ -133,11 +204,16 @@ class WalletService {
   }
 
   Future<void> disconnect() async {
-    if (_session != null && _web3App != null) {
+    if (_session != null && _appKit != null) {
       try {
-        await _web3App!.disconnectSession(
+        final coreError = Errors.getSdkError(Errors.USER_DISCONNECTED);
+        await _appKit!.disconnectSession(
           topic: _session!.topic,
-          reason: Errors.getSdkError(Errors.USER_DISCONNECTED),
+          reason: ReownSignError(
+            code: coreError.code,
+            message: coreError.message,
+            data: coreError.data,
+          ),
         );
       } catch (e) {
         debugPrint('Disconnect error: $e');
@@ -146,6 +222,7 @@ class WalletService {
     _session = null;
     _currentAddress = null;
     _lastError = null;
+    _connectionController.add(false);
   }
 
   void _onSessionConnect(SessionConnect? event) {
@@ -154,6 +231,7 @@ class WalletService {
       final accounts = _session!.namespaces['eip155']?.accounts ?? [];
       if (accounts.isNotEmpty) {
         _currentAddress = accounts.first.split(':').last;
+        _connectionController.add(true);
       }
     }
   }
@@ -161,17 +239,18 @@ class WalletService {
   void _onSessionDelete(SessionDelete? event) {
     _session = null;
     _currentAddress = null;
+    _connectionController.add(false);
   }
 
   Future<String?> signMessage(String message) async {
-    if (_session == null || _web3App == null || _currentAddress == null) {
+    if (_session == null || _appKit == null || _currentAddress == null) {
       throw Exception('Wallet not connected');
     }
 
     try {
-      final signature = await _web3App!.request(
+      final signature = await _appKit!.request(
         topic: _session!.topic,
-        chainId: 'eip155:56',
+        chainId: 'eip155:${AppConfig.chainId}',
         request: SessionRequestParams(
           method: 'personal_sign',
           params: [message, _currentAddress],
@@ -186,7 +265,8 @@ class WalletService {
   }
 
   void dispose() {
-    _web3App?.onSessionConnect.unsubscribe(_onSessionConnect);
-    _web3App?.onSessionDelete.unsubscribe(_onSessionDelete);
+    _appKit?.onSessionConnect.unsubscribe(_onSessionConnect);
+    _appKit?.onSessionDelete.unsubscribe(_onSessionDelete);
+    _connectionController.close();
   }
 }
