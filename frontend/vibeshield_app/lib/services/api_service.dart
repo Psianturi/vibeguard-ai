@@ -5,8 +5,8 @@ import '../models/vibe_models.dart';
 class ApiService {
   final Dio _dio = Dio(BaseOptions(
     baseUrl: AppConfig.apiBaseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
+    connectTimeout: const Duration(seconds: 20),
+    receiveTimeout: const Duration(seconds: 20),
   ));
 
   static const String _coinGeckoBaseUrl = 'https://api.coingecko.com/api/v3';
@@ -87,8 +87,8 @@ class ApiService {
   Future<List<PriceData>> _getMarketPricesFromCoinGecko(List<String> ids) async {
     final dio = Dio(BaseOptions(
       baseUrl: _coinGeckoBaseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 20),
     ));
 
     final response = await dio.get(
