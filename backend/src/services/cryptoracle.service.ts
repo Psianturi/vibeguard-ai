@@ -23,19 +23,38 @@ export class CryptoracleService {
     try {
       const enhanced = await this.getEnhancedSentiment(symbol, 'Daily');
       if (!enhanced) {
-        return { token: symbol, score: 50, timestamp: Date.now(), sources: [] };
+        return {
+          token: symbol,
+          score: this.fallbackScore(symbol),
+          timestamp: Date.now(),
+          sources: ['fallback']
+        };
       }
 
       return {
         token: symbol,
         score: Math.round((enhanced.sentiment.positive ?? 0.5) * 100),
         timestamp: Date.now(),
-        sources: []
+        sources: ['cryptoracle']
       };
     } catch (error: any) {
       console.error('Cryptoracle error:', error?.message || error?.response?.status || 'Unknown');
-      return { token: symbol, score: 50, timestamp: Date.now(), sources: [] };
+      return {
+        token: symbol,
+        score: this.fallbackScore(symbol),
+        timestamp: Date.now(),
+        sources: ['fallback']
+      };
     }
+  }
+
+  private fallbackScore(symbol: string): number {
+    // Deterministic pseudo-random score per symbol
+    // when upstream is unavailable (keeps demo/monitor behavior meaningful).
+    const seed = symbol.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const random01 = (i: number) => (((seed * 9301 + 49297 + i * 233) % 233280) / 233280);
+    const positive = 0.4 + random01(7) * 0.4; // 0.4 - 0.8
+    return Math.round(positive * 100);
   }
 
   /**
