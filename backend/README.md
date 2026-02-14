@@ -92,6 +92,17 @@ This endpoint returns a **transaction hash** (`txHash`) when the on-chain call s
 - `POST /api/vibe/subscribe`
 - `POST /api/vibe/run-once`
 
+## On-chain History
+
+- `GET /api/vibe/tx-history?userAddress=0x...&limit=50`
+  - Returns a simple file-backed list of recent `txHash` items recorded by either manual swaps or monitor-triggered swaps.
+
+## Debug (disabled by default)
+
+- `GET /api/vibe/debug/models` (only when `DEBUG=true`)
+  - Lists Gemini models available to the current `GOOGLE_API_KEY`/`GEMINI_API_KEY` that support `generateContent`.
+  - Useful for setting `KALIBR_MODEL_HIGH` / `KALIBR_MODEL_LOW` without guessing model IDs.
+
 ## Deployment (Railway)
 
 1. Connect GitHub repo to Railway

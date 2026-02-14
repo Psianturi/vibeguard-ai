@@ -4,6 +4,7 @@ import { CoinGeckoService } from '../services/coingecko.service';
 import { KalibrService } from '../services/kalibr.service';
 import { BlockchainService } from '../services/blockchain.service';
 import { loadSubscriptions, upsertSubscription } from '../storage/subscriptions';
+import { appendTxHistory, loadTxHistory } from '../storage/txHistory';
 import { runMonitorOnce } from '../monitor/vibeMonitor';
 
 const router = Router();
@@ -11,6 +12,20 @@ const cryptoracle = new CryptoracleService();
 const coingecko = new CoinGeckoService();
 const kalibr = new KalibrService();
 const blockchain = new BlockchainService();
+
+router.get('/debug/models', async (req, res) => {
+  const debugEnabled = String(process.env.DEBUG || '').toLowerCase() === 'true';
+  if (!debugEnabled) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  try {
+    const models = await kalibr.listGeminiGenerateContentModels();
+    res.json({ ok: true, count: models.length, models });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
 
 router.post('/check', async (req, res) => {
   try {
@@ -33,10 +48,32 @@ router.post('/execute-swap', async (req, res) => {
   try {
     const { userAddress, tokenAddress, amount } = req.body;
     const result = await blockchain.emergencySwap(userAddress, tokenAddress, amount);
+
+    if (result?.success && result?.txHash && userAddress && tokenAddress) {
+      appendTxHistory({
+        userAddress,
+        tokenAddress,
+        txHash: result.txHash,
+        timestamp: Date.now(),
+        source: 'manual'
+      });
+    }
+
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+});
+
+router.get('/tx-history', (req, res) => {
+  const userAddress = String(req.query.userAddress || '').trim();
+  if (!userAddress) {
+    return res.status(400).json({ ok: false, error: 'Missing userAddress query param' });
+  }
+
+  const limit = req.query.limit ? Number(req.query.limit) : undefined;
+  const items = loadTxHistory({ userAddress, limit });
+  return res.json({ ok: true, items });
 });
 
 router.get('/subscriptions', (req, res) => {

@@ -22,6 +22,27 @@ npm run build
 npm run deploy:bsc
 ```
 
+## Sepolia demo (recommended for testing)
+
+1) Deploy to Sepolia (this deploys RouterStub + ERC20Mintable wrapped token + VibeGuardVault):
+
+```bash
+npm run deploy:sepolia
+```
+
+2) Copy the printed addresses into `contracts/.env`:
+
+- `VAULT_ADDRESS=<VibeGuardVault deployed to ...>`
+- `TOKEN_ADDRESS=<wrappedNative from Sepolia mocks deployed ...>`
+
+3) Mint + setConfig + approve in one go:
+
+```bash
+hardhat run scripts/demoSetup.ts --network sepolia
+```
+
+After that, the backend guardian can call `executeEmergencySwap(user, token, amountIn)` and you should get a real `txHash` on Sepolia.
+
 ## User onboarding (high level)
 1. User calls `setConfig(token, stable, enabled, slippageBps, maxAmountIn, useWbnbHop)`
 2. User approves the vault: `approve(vault, amount)` for the `token`

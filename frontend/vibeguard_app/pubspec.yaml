@@ -23,6 +23,7 @@ dependencies:
   
   # Web3
   web3dart: ^2.7.1
+  flutter_web3: ^2.1.9
   
   # Utils
   intl: ^0.18.1

@@ -3,6 +3,7 @@ import { CoinGeckoService } from '../services/coingecko.service';
 import { KalibrService } from '../services/kalibr.service';
 import { BlockchainService } from '../services/blockchain.service';
 import { loadSubscriptions, saveSubscriptions, Subscription } from '../storage/subscriptions';
+import { appendTxHistory } from '../storage/txHistory';
 
 const cryptoracle = new CryptoracleService();
 const coingecko = new CoinGeckoService();
@@ -25,6 +26,15 @@ export async function runMonitorOnce() {
       let executed: any = null;
       if (analysis.shouldExit && analysis.riskScore >= sub.riskThreshold) {
         executed = await blockchain.emergencySwap(sub.userAddress, sub.tokenAddress, sub.amount);
+        if (executed?.success && executed?.txHash) {
+          appendTxHistory({
+            userAddress: sub.userAddress,
+            tokenAddress: sub.tokenAddress,
+            txHash: executed.txHash,
+            timestamp: Date.now(),
+            source: 'monitor'
+          });
+        }
         // Auto-disable after execution (hackathon safety)
         sub.enabled = false;
       }

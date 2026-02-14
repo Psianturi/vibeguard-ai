@@ -86,3 +86,29 @@ class VibeCheckResult {
     );
   }
 }
+
+class TxHistoryItem {
+  final String userAddress;
+  final String tokenAddress;
+  final String txHash;
+  final int timestamp;
+  final String source;
+
+  TxHistoryItem({
+    required this.userAddress,
+    required this.tokenAddress,
+    required this.txHash,
+    required this.timestamp,
+    required this.source,
+  });
+
+  factory TxHistoryItem.fromJson(Map<String, dynamic> json) {
+    return TxHistoryItem(
+      userAddress: json['userAddress'] as String,
+      tokenAddress: json['tokenAddress'] as String,
+      txHash: json['txHash'] as String,
+      timestamp: (json['timestamp'] as num).toInt(),
+      source: (json['source'] as String?) ?? 'manual',
+    );
+  }
+}

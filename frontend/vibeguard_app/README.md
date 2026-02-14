@@ -14,6 +14,20 @@ flutter pub get
 flutter run -d chrome
 ```
 
+### Production config (no localhost)
+
+By default, **debug** runs use `http://localhost:3000`.
+
+For production run with `--dart-define`:
+
+```bash
+flutter run -d chrome \
+    --dart-define=API_BASE_URL=https://vibeguard-ai-production.up.railway.app \
+    --dart-define=CHAIN_ID=11155111 \
+    --dart-define=RPC_URL=https://ethereum-sepolia-rpc.publicnode.com \
+    --dart-define=EXPLORER_TX_BASE_URL=https://sepolia.etherscan.io/tx/
+```
+
 3. Run on mobile:
 ```bash
 flutter run
@@ -38,6 +52,12 @@ flutter build ios --release
 - 🤖 AI-powered risk analysis
 - 🔄 Emergency swap execution
 - 📱 Responsive design (Web + Mobile)
+
+## API used by the app
+
+- `POST /api/vibe/check`
+- `POST /api/vibe/execute-swap` (requires `userAddress`)
+- `GET /api/vibe/tx-history?userAddress=0x...&limit=50`
 
 ## Project Structure
 

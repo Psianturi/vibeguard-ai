@@ -14,13 +14,13 @@ export class BlockchainService {
   private privateKey: string;
 
   constructor() {
-    this.rpcUrl = process.env.BSC_RPC_URL || '';
+    this.rpcUrl = process.env.EVM_RPC_URL || process.env.SEPOLIA_RPC_URL || process.env.BSC_RPC_URL || '';
     this.privateKey = process.env.PRIVATE_KEY || '';
     this.vaultAddress = process.env.VIBEGUARD_VAULT_ADDRESS || '';
   }
 
   private getWallet(): ethers.Wallet {
-    if (!this.rpcUrl) throw new Error('Missing BSC_RPC_URL');
+    if (!this.rpcUrl) throw new Error('Missing EVM_RPC_URL (or SEPOLIA_RPC_URL/BSC_RPC_URL)');
     if (!this.privateKey) throw new Error('Missing PRIVATE_KEY');
 
     if (!this.provider) this.provider = new ethers.JsonRpcProvider(this.rpcUrl);
