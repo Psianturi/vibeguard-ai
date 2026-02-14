@@ -23,7 +23,7 @@ export class KalibrService {
     this.modelLow = process.env.KALIBR_MODEL_LOW || 'gemini-2.0-flash';
     this.sentimentBadThreshold = Number(process.env.SENTIMENT_BAD_THRESHOLD ?? 30);
 
-    const fallbackStr = process.env.GEMINI_MODEL_FALLBACKS || 'gemini-2.5-flash,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-flash';
+    const fallbackStr = process.env.GEMINI_MODEL_FALLBACKS || 'gemini-2.5-flash,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-flash-8b';
     this.modelFallbacks = fallbackStr
       .split(',')
       .map((s) => s.trim())

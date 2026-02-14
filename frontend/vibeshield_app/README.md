@@ -1,4 +1,4 @@
-# VibeGuard AI - Frontend
+# VibeShield AI - Frontend
 
 Flutter hybrid app (Web + Mobile) for crypto portfolio monitoring.
 

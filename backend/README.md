@@ -1,4 +1,4 @@
-# VibeGuard AI - Backend
+# VibeShield AI - Backend
 
 AI-powered sentiment monitoring and risk analysis engine.
 

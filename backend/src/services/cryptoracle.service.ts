@@ -33,7 +33,13 @@ export class CryptoracleService {
         }
       }
 
-      if (!response) throw lastError;
+      if (!response) {
+        console.error('Cryptoracle: All authentication methods failed', lastError?.message);
+        throw lastError;
+      }
+
+      // Log response for debugging
+      console.log('Cryptoracle response for', token, ':', JSON.stringify(response.data).slice(0, 200));
 
       return {
         token,
@@ -41,8 +47,8 @@ export class CryptoracleService {
         timestamp: Date.now(),
         sources: response.data.sources || []
       };
-    } catch (error) {
-      console.error('Cryptoracle error');
+    } catch (error: any) {
+      console.error('Cryptoracle error:', error?.message || error?.response?.status || 'Unknown');
       return { token, score: 50, timestamp: Date.now(), sources: [] };
     }
   }

@@ -1,6 +1,6 @@
-# VibeGuard Contracts
+ja# VibeShield Contracts
 
-This folder contains the non-custodial **VibeGuardVault** contract used for "Option B" autopilot execution.
+This folder contains the non-custodial **VibeShieldVault** contract used for "Option B" autopilot execution.
 
 ## What it does
 - Users keep funds in their own wallet.
@@ -24,7 +24,7 @@ npm run deploy:bsc
 
 ## Sepolia demo (recommended for testing)
 
-1) Deploy to Sepolia (this deploys RouterStub + ERC20Mintable wrapped token + VibeGuardVault):
+1) Deploy to Sepolia (this deploys RouterStub + ERC20Mintable wrapped token + VibeShieldVault):
 
 ```bash
 npm run deploy:sepolia
@@ -32,7 +32,7 @@ npm run deploy:sepolia
 
 2) Copy the printed addresses into `contracts/.env`:
 
-- `VAULT_ADDRESS=<VibeGuardVault deployed to ...>`
+- `VAULT_ADDRESS=<VibeShieldVault deployed to ...>`
 - `TOKEN_ADDRESS=<wrappedNative from Sepolia mocks deployed ...>`
 
 3) Mint + setConfig + approve in one go:

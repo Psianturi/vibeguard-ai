@@ -1,4 +1,6 @@
-# VibeGuard AI 🛡️
+# VibeShield AI 🛡️
+
+> "Sell the Rumor, Protect the Vibe." - An AI Agent that listens to market whispers before the charts do.
 
 **Tagline:** *"Sell the Rumor, Protect the Vibe."*
 
@@ -39,10 +41,10 @@ flutter run            # Mobile
 
 ## Project Structure
 ```
-vibeguard-ai/
+vibeshield-ai/
 ├── backend/           # Node.js API (Express + TS) + monitor loop
-├── contracts/         # VibeGuardVault (non-custodial) + Hardhat scripts
-├── frontend/          # Flutter app (vibeguard_app)
+├── contracts/         # VibeShieldVault (non-custodial) + Hardhat scripts
+├── frontend/          # Flutter app (vibeshield_app)
 ├── railway.json       # Railway config-as-code (DOCKERFILE)
 ├── railway.toml       # Railway config-as-code (dockerfile)
 ├── .dockerignore      # Shrinks Docker build context
@@ -62,31 +64,7 @@ vibeguard-ai/
 - **Non-custodial execution (contract + API):** the backend can call the vault function `executeEmergencySwap(user, token, amountIn)` and returns a `txHash` on success.
 - **Multi-user subscriptions:** `/api/vibe/subscribe`, `/api/vibe/subscriptions`, and `/api/vibe/run-once`.
 
-## Quick verification (no UI required)
-You can verify the end-to-end wiring via HTTP calls, even before running Flutter.
 
-1) Health
-```bash
-curl https://vibeguard-ai-production.up.railway.app/health
-```
-
-2) Risk check (data → AI)
-```bash
-curl -X POST https://vibeguard-ai-production.up.railway.app/api/vibe/check \
-	-H "Content-Type: application/json" \
-	-d '{"token":"BTC","tokenId":"bitcoin"}'
-```
-
-3) Subscribe + run once (monitor path)
-```bash
-curl -X POST https://vibeguard-ai-production.up.railway.app/api/vibe/subscribe \
-	-H "Content-Type: application/json" \
-	-d '{"userAddress":"0xYourWallet","tokenSymbol":"BTC","tokenId":"bitcoin","tokenAddress":"0xToken","amount":"1","enabled":true,"riskThreshold":80}'
-
-curl -X POST https://vibeguard-ai-production.up.railway.app/api/vibe/run-once
-```
-
-> Note: On-chain execution requires the vault to be deployed, guardian configured, and the user to have approved the vault. See contracts/README.md.
 
 ---
 

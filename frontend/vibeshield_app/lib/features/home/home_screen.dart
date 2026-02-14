@@ -35,7 +35,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🛡️ VibeGuard AI'),
+        title: const Text('🛡️ VibeShield AI'),
         centerTitle: true,
         actions: [
           if (walletState.isConnected)

@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   VibeGuard AI - Environment Setup
+echo   VibeShield AI - Environment Setup
 echo ========================================
 echo.
 
@@ -29,7 +29,7 @@ echo.
 cd ..
 
 echo [3/3] Installing Frontend Dependencies...
-cd frontend\vibeguard_app
+cd frontend\vibeshield_app
 call flutter pub get
 if %errorlevel% neq 0 (
     echo ❌ Frontend installation failed!
@@ -48,7 +48,7 @@ echo.
 echo Next Steps:
 echo 1. Edit backend\.env with your API keys
 echo 2. Run backend: cd backend ^&^& npm run dev
-echo 3. Run frontend: cd frontend\vibeguard_app ^&^& flutter run -d chrome
+echo 3. Run frontend: cd frontend\vibeshield_app ^&^& flutter run -d chrome
 echo.
 echo For detailed instructions, see QUICKSTART.md
 echo.

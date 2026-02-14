@@ -16,12 +16,12 @@ contracts/.env
 !.env.example
 
 # Frontend
-frontend/vibeguard_app/.dart_tool/
-frontend/vibeguard_app/.flutter-plugins
-frontend/vibeguard_app/.flutter-plugins-dependencies
-frontend/vibeguard_app/.packages
-frontend/vibeguard_app/build/
-frontend/vibeguard_app/.flutter-plugins-dependencies
+frontend/vibeshield_app/.dart_tool/
+frontend/vibeshield_app/.flutter-plugins
+frontend/vibeshield_app/.flutter-plugins-dependencies
+frontend/vibeshield_app/.packages
+frontend/vibeshield_app/build/
+frontend/vibeshield_app/.flutter-plugins-dependencies
 
 # IDE
 .vscode/

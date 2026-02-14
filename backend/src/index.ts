@@ -15,7 +15,7 @@ app.use(express.json());
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'VibeGuard AI is running',
+    message: 'VibeShield AI is running',
     config: {
       kalibr: {
         apiKey: Boolean(process.env.KALIBR_API_KEY),
@@ -48,7 +48,7 @@ app.get('/health', (req, res) => {
 app.use('/api/vibe', vibeRoutes);
 
 app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`🛡️  VibeGuard AI Backend running on port ${PORT}`);
+  console.log(`🛡️  VibeShield AI Backend running on port ${PORT}`);
 });
 
 startMonitorLoop();

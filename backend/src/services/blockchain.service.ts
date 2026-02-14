@@ -16,7 +16,7 @@ export class BlockchainService {
   constructor() {
     this.rpcUrl = process.env.EVM_RPC_URL || process.env.SEPOLIA_RPC_URL || process.env.BSC_RPC_URL || '';
     this.privateKey = process.env.PRIVATE_KEY || '';
-    this.vaultAddress = process.env.VIBEGUARD_VAULT_ADDRESS || '';
+    this.vaultAddress = process.env.VIBESHIELD_VAULT_ADDRESS || process.env.VIBEGUARD_VAULT_ADDRESS || '';
   }
 
   private getWallet(): ethers.Wallet {
