@@ -1,6 +1,6 @@
 {
-    "name": "vibeguard_app",
-    "short_name": "vibeguard_app",
+    "name": "VibeShield AI",
+    "short_name": "VibeShield",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

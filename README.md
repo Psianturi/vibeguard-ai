@@ -1,6 +1,6 @@
 # VibeShield AI 🛡️
 
-> "Sell the Rumor, Protect the Vibe." - An AI Agent that listens to market whispers before the charts do.
+"Sell the Rumor, Protect the Vibe." - An AI Agent that listens to market whispers before the charts do.
 
 **Tagline:** *"Sell the Rumor, Protect the Vibe."*
 
