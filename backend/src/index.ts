@@ -9,7 +9,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+const corsOptions: cors.CorsOptions = {
+  origin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
+    : true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 app.get('/health', (req, res) => {
@@ -35,7 +45,7 @@ app.get('/health', (req, res) => {
       blockchain: {
         rpcUrl: Boolean(process.env.EVM_RPC_URL || process.env.SEPOLIA_RPC_URL || process.env.BSC_RPC_URL),
         privateKey: Boolean(process.env.PRIVATE_KEY),
-        vaultAddress: Boolean(process.env.VIBEGUARD_VAULT_ADDRESS)
+        vaultAddress: Boolean(process.env.VIBESHIELD_VAULT_ADDRESS || process.env.VIBEGUARD_VAULT_ADDRESS)
       },
       monitor: {
         enabled: String(process.env.ENABLE_MONITOR || '').toLowerCase() === 'true',

@@ -4,12 +4,14 @@ import 'wallet_adapter_types.dart';
 
 class WebWalletAdapter implements WalletAdapter {
   @override
-  bool get isSupported => ethereum != null;
+  bool get isSupported => true;
 
   @override
   Future<WalletConnection> connect() async {
     if (ethereum == null) {
-      throw UnsupportedError('MetaMask not found (window.ethereum is null).');
+      throw UnsupportedError(
+        'MetaMask not detected. Install/enable the MetaMask extension and refresh the page.',
+      );
     }
 
     final accounts = await ethereum!.requestAccount();
