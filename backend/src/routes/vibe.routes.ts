@@ -40,7 +40,14 @@ router.post('/check', async (req, res) => {
 
     res.json({ sentiment, price, analysis });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    const status = error?.response?.status;
+    const msg = String(error?.message || 'Request failed');
+
+    if (status === 429 || msg.includes('status 429')) {
+      return res.status(429).json({ error: 'Rate limited by upstream provider. Please retry in a moment.' });
+    }
+
+    res.status(500).json({ error: msg });
   }
 });
 

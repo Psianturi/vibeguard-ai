@@ -9,9 +9,16 @@
     "deploy:testnet": "hardhat run scripts/deploy.ts --network bscTestnet"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
     "dotenv": "^16.4.7",
     "hardhat": "^2.22.17",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "lodash": "4.17.23",
+    "cookie": "0.7.0",
+    "tmp": "0.2.5",
+    "qs": "6.14.2"
   }
 }
