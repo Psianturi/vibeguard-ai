@@ -45,9 +45,15 @@ class SentimentInsightsWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text('📊 Sentiment Insights', style: theme.textTheme.titleLarge),
-                const Spacer(),
-                _buildVibeBadge(vibeScore, scheme),
+                Expanded(
+                  child: Text(
+                    '📊 Sentiment Insights',
+                    style: theme.textTheme.titleLarge,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: _buildVibeBadge(vibeScore, scheme)),
               ],
             ),
             const SizedBox(height: 8),

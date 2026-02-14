@@ -52,8 +52,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final q = query.trim().toLowerCase();
     final symbol = _tokenController.text.trim().toUpperCase();
 
+    return _coinGeckoIdSuggestionsFor(query: q, symbol: symbol);
+  }
+
+  Iterable<String> _coinGeckoIdSuggestionsFor({required String query, required String symbol}) {
+    final q = query.trim().toLowerCase();
+    final s = symbol.trim().toUpperCase();
+
     if (q.isEmpty) {
-      final bySymbol = _coinGeckoPresets.where((e) => e['symbol'] == symbol).map((e) => e['id']!).toList();
+      final bySymbol = _coinGeckoPresets.where((e) => e['symbol'] == s).map((e) => e['id']!).toList();
       if (bySymbol.isNotEmpty) return bySymbol;
       return _coinGeckoPresets.map((e) => e['id']!);
     }
@@ -74,6 +81,177 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _tokenController.text = symbol;
       _tokenIdController.text = coinGeckoId;
     });
+  }
+
+  Future<void> _openTokenSearchModal() async {
+    final initialSymbol = _tokenController.text.trim().toUpperCase();
+    final initialCoinId = _tokenIdController.text.trim().toLowerCase();
+
+    final symbolController = TextEditingController(text: initialSymbol);
+    final coinIdController = TextEditingController(text: initialCoinId);
+    final coinIdFocusNode = FocusNode();
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              final currentSymbol = symbolController.text.trim().toUpperCase();
+
+              void applyModalPreset(String symbol, String coinId) {
+                setModalState(() {
+                  symbolController.text = symbol;
+                  coinIdController.text = coinId;
+                });
+              }
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 12,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Search Token', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Use this for tokens outside the dashboard cards.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('BTC'),
+                          selected: currentSymbol == 'BTC',
+                          onSelected: (_) => applyModalPreset('BTC', 'bitcoin'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('BNB'),
+                          selected: currentSymbol == 'BNB',
+                          onSelected: (_) => applyModalPreset('BNB', 'binancecoin'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('ETH'),
+                          selected: currentSymbol == 'ETH',
+                          onSelected: (_) => applyModalPreset('ETH', 'ethereum'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('USDT'),
+                          selected: currentSymbol == 'USDT',
+                          onSelected: (_) => applyModalPreset('USDT', 'tether'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: symbolController,
+                      decoration: const InputDecoration(
+                        labelText: 'Token Symbol',
+                        border: OutlineInputBorder(),
+                      ),
+                      textCapitalization: TextCapitalization.characters,
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    RawAutocomplete<String>(
+                      textEditingController: coinIdController,
+                      focusNode: coinIdFocusNode,
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        return _coinGeckoIdSuggestionsFor(
+                          query: textEditingValue.text,
+                          symbol: symbolController.text,
+                        );
+                      },
+                      displayStringForOption: (opt) => opt,
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          decoration: const InputDecoration(
+                            labelText: 'CoinGecko ID',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => setModalState(() {}),
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        final opts = options.toList(growable: false);
+                        if (opts.isEmpty) return const SizedBox.shrink();
+
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 220, maxWidth: 520),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: opts.length,
+                                itemBuilder: (context, index) {
+                                  final id = opts[index];
+                                  final preset = _coinGeckoPresets.firstWhere(
+                                    (e) => e['id'] == id,
+                                    orElse: () => const <String, String>{},
+                                  );
+                                  final symbol = preset['symbol'];
+
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text(id),
+                                    subtitle: (symbol != null && symbol.isNotEmpty) ? Text(symbol) : null,
+                                    onTap: () => onSelected(id),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final token = symbolController.text.trim().toUpperCase();
+                          final tokenId = coinIdController.text.trim().toLowerCase();
+                          if (token.isEmpty || tokenId.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Token Symbol and CoinGecko ID are required.')),
+                            );
+                            return;
+                          }
+
+                          _applyPreset(symbol: token, coinGeckoId: tokenId);
+                          ref.read(vibeNotifierProvider.notifier).checkVibe(token, tokenId);
+                          ref.read(insights.insightsProvider.notifier).fetchInsights(token);
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Check Vibe'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      symbolController.dispose();
+      coinIdController.dispose();
+      coinIdFocusNode.dispose();
+    }
   }
 
   @override
@@ -161,107 +339,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
+                    Row(
                       children: [
-                        ChoiceChip(
-                          label: const Text('BTC'),
-                          selected:
-                              _tokenController.text.trim().toUpperCase() ==
-                                  'BTC',
-                          onSelected: (_) => _applyPreset(
-                              symbol: 'BTC', coinGeckoId: 'bitcoin'),
+                        Expanded(
+                          child: Text(
+                            'Selected: ${_tokenController.text.trim().toUpperCase()}  (${_tokenIdController.text.trim().toLowerCase()})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        ChoiceChip(
-                          label: const Text('BNB'),
-                          selected:
-                              _tokenController.text.trim().toUpperCase() ==
-                                  'BNB',
-                          onSelected: (_) => _applyPreset(
-                              symbol: 'BNB', coinGeckoId: 'binancecoin'),
-                        ),
-                        ChoiceChip(
-                          label: const Text('ETH'),
-                          selected:
-                              _tokenController.text.trim().toUpperCase() ==
-                                  'ETH',
-                          onSelected: (_) => _applyPreset(
-                              symbol: 'ETH', coinGeckoId: 'ethereum'),
-                        ),
-                        ChoiceChip(
-                          label: const Text('USDT'),
-                          selected:
-                              _tokenController.text.trim().toUpperCase() ==
-                                  'USDT',
-                          onSelected: (_) => _applyPreset(
-                              symbol: 'USDT', coinGeckoId: 'tether'),
+                        TextButton(
+                          onPressed: _openTokenSearchModal,
+                          child: const Text('Search token'),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _tokenController,
-                      decoration: const InputDecoration(
-                        labelText: 'Token Symbol',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: 12),
-                    RawAutocomplete<String>(
-                      textEditingController: _tokenIdController,
-                      focusNode: _tokenIdFocusNode,
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        return _coinGeckoIdSuggestions(textEditingValue.text);
-                      },
-                      displayStringForOption: (opt) => opt,
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        return TextField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          decoration: const InputDecoration(
-                            labelText: 'CoinGecko ID',
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (_) => setState(() {}),
-                        );
-                      },
-                      optionsViewBuilder: (context, onSelected, options) {
-                        final opts = options.toList(growable: false);
-                        if (opts.isEmpty) return const SizedBox.shrink();
-
-                        return Align(
-                          alignment: Alignment.topLeft,
-                          child: Material(
-                            elevation: 4,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 220, maxWidth: 520),
-                              child: ListView.builder(
-                                padding: EdgeInsets.zero,
-                                shrinkWrap: true,
-                                itemCount: opts.length,
-                                itemBuilder: (context, index) {
-                                  final id = opts[index];
-                                  final preset = _coinGeckoPresets.firstWhere(
-                                    (e) => e['id'] == id,
-                                    orElse: () => const <String, String>{},
-                                  );
-                                  final symbol = preset['symbol'];
-
-                                  return ListTile(
-                                    dense: true,
-                                    title: Text(id),
-                                    subtitle: (symbol != null && symbol.isNotEmpty) ? Text(symbol) : null,
-                                    onTap: () => onSelected(id),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: vibeState.isLoading
                           ? null
@@ -510,6 +602,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           token,
           coinGeckoId,
         );
+        // Keep Insights in sync with card-tap checks.
+        ref.read(insights.insightsProvider.notifier).fetchInsights(token);
       },
     );
   }

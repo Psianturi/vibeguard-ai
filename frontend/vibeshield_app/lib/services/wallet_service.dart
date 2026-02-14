@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:walletconnect_flutter_v2/walletconnect_flutter_v2.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/config.dart';
@@ -56,7 +57,7 @@ class WalletService {
       await init();
 
       if (_web3App == null) {
-        throw Exception('WalletConnect not initialized');
+        throw Exception(_lastError ?? 'WalletConnect not initialized');
       }
 
       // Check if already connected
@@ -108,8 +109,8 @@ class WalletService {
         }
       }
 
-      // Wait for session approval
-      _session = await response.session.future.timeout(const Duration(minutes: 1));
+
+      _session = await response.session.future.timeout(const Duration(minutes: 2));
       
       if (_session != null) {
         final accounts = _session!.namespaces['eip155']?.accounts ?? [];
@@ -119,6 +120,10 @@ class WalletService {
         }
       }
 
+      return null;
+    } on TimeoutException {
+      _lastError = 'WalletConnect approval timed out. Please open your wallet app and approve the connection, then try again.';
+      debugPrint('WalletConnect error: $_lastError');
       return null;
     } catch (e) {
       _lastError = e.toString();
