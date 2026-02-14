@@ -22,8 +22,8 @@ jobs:
     env:
       API_BASE_URL: ${{ vars.API_BASE_URL }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_PROJECT_NAME: ${{ secrets.VERCEL_PROJECT_NAME }}
-      VERCEL_SCOPE: ${{ secrets.VERCEL_SCOPE }}
+      VERCEL_PROJECT_NAME: ${{ secrets.VERCEL_PROJECT_NAME || vars.VERCEL_PROJECT_NAME }}
+      VERCEL_SCOPE: ${{ secrets.VERCEL_SCOPE || vars.VERCEL_SCOPE }}
 
     steps:
       - name: Checkout
@@ -73,7 +73,7 @@ jobs:
           fi
 
           if [ -z "${VERCEL_PROJECT_NAME:-}" ]; then
-            echo "Missing GitHub Secret: VERCEL_PROJECT_NAME" >&2
+            echo "Missing GitHub Actions Secret/Variable: VERCEL_PROJECT_NAME" >&2
             exit 1
           fi
 
