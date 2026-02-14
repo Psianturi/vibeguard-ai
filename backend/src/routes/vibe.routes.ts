@@ -6,6 +6,7 @@ import { BlockchainService } from '../services/blockchain.service';
 import { loadSubscriptions, upsertSubscription } from '../storage/subscriptions';
 import { appendTxHistory, loadTxHistory } from '../storage/txHistory';
 import { runMonitorOnce } from '../monitor/vibeMonitor';
+import { ethers } from 'ethers';
 
 const router = Router();
 const cryptoracle = new CryptoracleService();
@@ -24,6 +25,49 @@ router.get('/debug/models', async (req, res) => {
     res.json({ ok: true, count: models.length, models });
   } catch (error: any) {
     res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+router.get('/token-presets', (req, res) => {
+  const raw = String(process.env.TOKEN_PRESETS_JSON || '').trim();
+  if (!raw) {
+    return res.json({ ok: true, items: [] });
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const items = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : []);
+
+    const chainIdQuery = String(req.query.chainId || '').trim();
+    const chainId = chainIdQuery ? Number(chainIdQuery) : null;
+
+    const normalized = items
+      .map((it: any) => {
+        const address = String(it?.address || it?.tokenAddress || '').trim();
+        const chainIdVal = Number(it?.chainId);
+        const symbol = String(it?.symbol || '').trim().toUpperCase();
+        const name = String(it?.name || symbol).trim();
+        const decimals = it?.decimals != null ? Number(it.decimals) : null;
+        const coinGeckoId = String(it?.coinGeckoId || it?.coingeckoId || '').trim().toLowerCase();
+
+        return {
+          chainId: Number.isFinite(chainIdVal) ? chainIdVal : null,
+          symbol,
+          name,
+          address: ethers.isAddress(address) ? address : '',
+          decimals: Number.isFinite(decimals as any) ? decimals : null,
+          coinGeckoId: coinGeckoId || null
+        };
+      })
+      .filter((it: any) => it.symbol && it.address && it.chainId != null);
+
+    const filtered = chainId != null
+      ? normalized.filter((it: any) => it.chainId === chainId)
+      : normalized;
+
+    return res.json({ ok: true, items: filtered });
+  } catch (e: any) {
+    return res.status(400).json({ ok: false, error: 'Invalid TOKEN_PRESETS_JSON' });
   }
 });
 

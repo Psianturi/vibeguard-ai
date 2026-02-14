@@ -6,6 +6,10 @@ const VIBEGUARD_VAULT_ABI = [
   'function guardians(address guardian) external view returns (bool)'
 ];
 
+const ERC20_ABI = [
+  'function decimals() view returns (uint8)'
+];
+
 export class BlockchainService {
   private provider?: ethers.JsonRpcProvider;
   private wallet?: ethers.Wallet;
@@ -36,13 +40,27 @@ export class BlockchainService {
 
       const wallet = this.getWallet();
 
+      if (!ethers.isAddress(tokenAddress)) {
+        return { success: false, error: 'Invalid tokenAddress' };
+      }
+
       const vault = new ethers.Contract(this.vaultAddress, VIBEGUARD_VAULT_ABI, wallet);
       const isGuardian: boolean = await vault.guardians(wallet.address);
       if (!isGuardian) {
         return { success: false, error: 'Backend wallet is not a vault guardian' };
       }
 
-      const amountIn = ethers.parseUnits(amount, 18);
+      // Determine token decimals dynamically.
+      let decimals = 18;
+      try {
+        const erc20 = new ethers.Contract(tokenAddress, ERC20_ABI, wallet);
+        const d = await erc20.decimals();
+        const n = Number(d);
+        if (Number.isFinite(n) && n >= 0 && n <= 36) decimals = n;
+      } catch {
+      }
+
+      const amountIn = ethers.parseUnits(amount, decimals);
       const tx = await vault.executeEmergencySwap(userAddress, tokenAddress, amountIn);
       const receipt = await tx.wait();
       return { success: true, txHash: receipt.hash };

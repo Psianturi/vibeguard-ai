@@ -111,22 +111,15 @@ class MultiTokenDashboardWidget extends StatelessWidget {
       sentimentLabel = '🔴 Bearish';
     }
     
-    return InkWell(
+    return _PressableTokenCard(
+      backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      borderColor: scheme.outlineVariant.withValues(alpha: 0.3),
       onTap: () {
-        // Map token to coinGecko ID
         final coinGeckoId = _getCoinGeckoId(token);
         onTokenSelected(token, coinGeckoId);
       },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -203,5 +196,61 @@ class MultiTokenDashboardWidget extends StatelessWidget {
       'USDT': 'tether',
     };
     return mapping[token.toUpperCase()] ?? token.toLowerCase();
+  }
+}
+
+class _PressableTokenCard extends StatefulWidget {
+  final VoidCallback onTap;
+  final Widget child;
+  final Color backgroundColor;
+  final Color borderColor;
+
+  const _PressableTokenCard({
+    required this.onTap,
+    required this.child,
+    required this.backgroundColor,
+    required this.borderColor,
+  });
+
+  @override
+  State<_PressableTokenCard> createState() => _PressableTokenCardState();
+}
+
+class _PressableTokenCardState extends State<_PressableTokenCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(12);
+
+    return AnimatedScale(
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      scale: _pressed ? 0.985 : 1,
+      child: AnimatedPhysicalModel(
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        elevation: _pressed ? 1.5 : 4,
+        color: widget.backgroundColor,
+        shadowColor: Theme.of(context).shadowColor,
+        shape: BoxShape.rectangle,
+        borderRadius: radius,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: widget.onTap,
+            onHighlightChanged: (v) => setState(() => _pressed = v),
+            borderRadius: radius,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                border: Border.all(color: widget.borderColor),
+              ),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

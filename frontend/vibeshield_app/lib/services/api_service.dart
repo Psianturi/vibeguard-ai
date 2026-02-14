@@ -12,6 +12,20 @@ class ApiService {
 
   static const String _coinGeckoBaseUrl = 'https://api.coingecko.com/api/v3';
 
+  Future<List<Map<String, dynamic>>> getTokenPresets({int? chainId}) async {
+    try {
+      final response = await _dio.get(
+        '/vibe/token-presets',
+        queryParameters: chainId == null ? null : {'chainId': chainId},
+      );
+      final data = response.data as Map<String, dynamic>;
+      final items = (data['items'] as List?) ?? [];
+      return items.map((e) => Map<String, dynamic>.from(e as Map)).toList(growable: false);
+    } catch (e) {
+      return const <Map<String, dynamic>>[];
+    }
+  }
+
   // Get detailed sentiment insights for a token
   Future<Map<String, dynamic>> getInsights(String token, {String window = 'Daily'}) async {
     try {

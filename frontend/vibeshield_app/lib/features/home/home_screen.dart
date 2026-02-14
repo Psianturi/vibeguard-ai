@@ -410,6 +410,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   
 
   Widget _buildEmergencySwapCard(BuildContext context, String userAddress) {
+    final api = ref.read(insights.apiServiceProvider);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -418,6 +420,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             Text('Emergency Swap', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: api.getTokenPresets(chainId: AppConfig.chainId),
+              builder: (context, snapshot) {
+                final items = snapshot.data ?? const <Map<String, dynamic>>[];
+                if (items.isEmpty) return const SizedBox.shrink();
+
+                String? current;
+                final currentAddress = _tokenAddressController.text.trim();
+                for (final it in items) {
+                  final addr = (it['address'] ?? '').toString().trim();
+                  if (addr.isNotEmpty && addr.toLowerCase() == currentAddress.toLowerCase()) {
+                    current = addr;
+                    break;
+                  }
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: current,
+                      decoration: const InputDecoration(
+                        labelText: 'Token Preset',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: items.map((it) {
+                        final symbol = (it['symbol'] ?? '').toString().trim();
+                        final name = (it['name'] ?? symbol).toString().trim();
+                        final addr = (it['address'] ?? '').toString().trim();
+                        return DropdownMenuItem<String>(
+                          value: addr,
+                          child: Text(
+                            symbol.isNotEmpty ? '$symbol — $name' : name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(growable: false),
+                      onChanged: (addr) {
+                        if (addr == null || addr.trim().isEmpty) return;
+                        setState(() {
+                          _tokenAddressController.text = addr.trim();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              },
+            ),
             TextField(
               controller: _tokenAddressController,
               decoration: const InputDecoration(
@@ -429,7 +480,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             TextField(
               controller: _amountController,
               decoration: const InputDecoration(
-                labelText: 'Amount (human readable, 18 decimals demo)',
+                labelText: 'Amount (human readable)',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -452,7 +503,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                         setState(() => _isSwapping = true);
                         try {
-                          final api = ref.read(insights.apiServiceProvider);
                           final result = await api.executeSwap(
                             userAddress: userAddress,
                             tokenAddress: tokenAddress,
