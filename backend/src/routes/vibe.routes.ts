@@ -152,9 +152,22 @@ router.post('/insights', async (req, res) => {
       return res.status(400).json({ error: 'Missing token parameter' });
     }
 
+    const symbol = String(token || '').trim().toUpperCase();
+    const symbolToCoinId: Record<string, string> = {
+      BTC: 'bitcoin',
+      ETH: 'ethereum',
+      BNB: 'binancecoin',
+      USDT: 'tether',
+      SOL: 'solana',
+      XRP: 'ripple',
+      DOGE: 'dogecoin',
+      SUI: 'sui'
+    };
+    const coinId = symbolToCoinId[symbol] || String(token || '').trim().toLowerCase();
+
     const [enhanced, price] = await Promise.all([
-      cryptoracle.getEnhancedSentiment(token, window),
-      coingecko.getPrice(token.toLowerCase())
+      cryptoracle.getEnhancedSentiment(symbol, window),
+      coingecko.getPrice(coinId)
     ]);
 
     let vibeScore = 50;
@@ -170,7 +183,7 @@ router.post('/insights', async (req, res) => {
     }
 
     res.json({ 
-      token, 
+      token: symbol,
       window,
       enhanced: finalEnhanced, 
       price,
@@ -202,7 +215,7 @@ router.post('/multi', async (req, res) => {
       const result = results.get(token.toUpperCase());
       
       if (result && result.sentiment) {
-        // Use real data from Cryptoracle
+ 
         data[token.toUpperCase()] = {
           sentiment: {
             positive: result.sentiment.positive,

@@ -1,4 +1,9 @@
 class AppConfig {
+  static const String walletConnectProjectId = String.fromEnvironment(
+    'WALLETCONNECT_PROJECT_ID',
+    defaultValue: '',
+  );
+
   static String get _apiOrigin {
     const env = String.fromEnvironment('API_BASE_URL', defaultValue: '');
     if (env.isNotEmpty) return env;

@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/wallet_provider.dart';
 
 class WalletButton extends ConsumerWidget {
-  const WalletButton({super.key});
+  const WalletButton({super.key, this.compact = true});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,11 +25,16 @@ class WalletButton extends ConsumerWidget {
 
     if (walletState.isConnected) {
       return PopupMenuButton(
-        child: Chip(
-          avatar: const Icon(Icons.account_balance_wallet, size: 16),
-          label: Text(walletState.shortAddress),
-          backgroundColor: Colors.green.withOpacity(0.2),
-        ),
+        child: compact
+            ? const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: Icon(Icons.account_balance_wallet),
+              )
+            : Chip(
+                avatar: const Icon(Icons.account_balance_wallet, size: 16),
+                label: Text(walletState.shortAddress),
+                backgroundColor: Colors.green.withOpacity(0.2),
+              ),
         itemBuilder: (context) => [
           PopupMenuItem(
             child: ListTile(
@@ -58,15 +65,35 @@ class WalletButton extends ConsumerWidget {
       );
     }
 
+    if (compact) {
+      return IconButton(
+        tooltip: 'Connect Wallet',
+        onPressed: () async {
+          await ref.read(walletProvider.notifier).connect();
+          final err = ref.read(walletProvider).error;
+          if (err != null && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(err),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        icon: const Icon(Icons.account_balance_wallet),
+      );
+    }
+
     return ElevatedButton.icon(
       onPressed: () async {
         await ref.read(walletProvider.notifier).connect();
-        
-        if (walletState.error != null) {
+
+        final err = ref.read(walletProvider).error;
+        if (err != null) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(walletState.error!),
+                content: Text(err),
                 backgroundColor: Colors.red,
               ),
             );

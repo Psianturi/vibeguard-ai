@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/insight_provider.dart';
 import 'token_insight_card.dart';
+import '../wallet/wallet_button.dart';
 
 class InsightsScreen extends ConsumerStatefulWidget {
   const InsightsScreen({super.key});
@@ -22,6 +23,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
       appBar: AppBar(
         title: const Text('🔍 Market Insights'),
         actions: [
+          const WalletButton(compact: true),
           PopupMenuButton<String>(
             initialValue: _selectedWindow,
             onSelected: (value) {

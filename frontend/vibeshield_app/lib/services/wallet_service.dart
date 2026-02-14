@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:walletconnect_flutter_v2/walletconnect_flutter_v2.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/config.dart';
 
 class WalletService {
   static WalletService? _instance;
   Web3App? _web3App;
   SessionData? _session;
   String? _currentAddress;
+  String? _lastError;
 
   WalletService._();
 
@@ -17,13 +19,20 @@ class WalletService {
 
   bool get isConnected => _session != null && _currentAddress != null;
   String? get address => _currentAddress;
+  String? get lastError => _lastError;
 
   Future<void> init() async {
     if (_web3App != null) return;
 
     try {
+      _lastError = null;
+      final projectId = AppConfig.walletConnectProjectId.trim();
+      if (projectId.isEmpty) {
+        throw Exception('WalletConnect Project ID is not configured');
+      }
+
       _web3App = await Web3App.createInstance(
-        projectId: '75ac0a3e6c8f8e8c8e8c8e8c8e8c8e8c', // Replace with your WalletConnect Project ID
+        projectId: projectId,
         metadata: const PairingMetadata(
           name: 'VibeShield AI',
           description: 'Crypto Portfolio Guardian',
@@ -36,12 +45,14 @@ class WalletService {
       _web3App!.onSessionConnect.subscribe(_onSessionConnect);
       _web3App!.onSessionDelete.subscribe(_onSessionDelete);
     } catch (e) {
+      _lastError = e.toString();
       debugPrint('WalletConnect init error: $e');
     }
   }
 
   Future<String?> connect() async {
     try {
+      _lastError = null;
       await init();
 
       if (_web3App == null) {
@@ -71,22 +82,34 @@ class WalletService {
           // For web, show QR code or deep link
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         } else {
-          // For mobile, open wallet app directly
-          final walletUri = Uri.parse('metamask://wc?uri=${Uri.encodeComponent(uri.toString())}');
-          final canLaunch = await canLaunchUrl(walletUri);
-          
-          if (canLaunch) {
-            await launchUrl(walletUri, mode: LaunchMode.externalApplication);
-          } else {
-            // Fallback to Trust Wallet
-            final trustWalletUri = Uri.parse('trust://wc?uri=${Uri.encodeComponent(uri.toString())}');
-            await launchUrl(trustWalletUri, mode: LaunchMode.externalApplication);
+          // For mobile, try known wallet deep links first, then fallback to the raw WalletConnect URI.
+          final encoded = Uri.encodeComponent(uri.toString());
+          final candidates = <Uri>[
+            Uri.parse('metamask://wc?uri=$encoded'),
+            Uri.parse('trust://wc?uri=$encoded'),
+            uri,
+          ];
+
+          bool launched = false;
+          for (final candidate in candidates) {
+            try {
+              final ok = await launchUrl(candidate, mode: LaunchMode.externalApplication);
+              if (ok) {
+                launched = true;
+                break;
+              }
+            } catch (_) {
+            }
+          }
+
+          if (!launched) {
+            throw Exception('No compatible wallet app found. Install MetaMask/Trust Wallet and try again.');
           }
         }
       }
 
       // Wait for session approval
-      _session = await response.session.future;
+      _session = await response.session.future.timeout(const Duration(minutes: 1));
       
       if (_session != null) {
         final accounts = _session!.namespaces['eip155']?.accounts ?? [];
@@ -98,6 +121,7 @@ class WalletService {
 
       return null;
     } catch (e) {
+      _lastError = e.toString();
       debugPrint('WalletConnect error: $e');
       return null;
     }
@@ -116,6 +140,7 @@ class WalletService {
     }
     _session = null;
     _currentAddress = null;
+    _lastError = null;
   }
 
   void _onSessionConnect(SessionConnect? event) {

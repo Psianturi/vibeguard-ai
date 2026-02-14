@@ -28,6 +28,21 @@ flutter run -d chrome \
     --dart-define=EXPLORER_TX_BASE_URL=https://sepolia.etherscan.io/tx/
 ```
 
+### Environment / Build Defines
+
+This app uses `--dart-define` for environment configuration:
+
+- `API_BASE_URL` (optional): backend origin (no `/api`), e.g. `https://...railway.app`
+- `WALLETCONNECT_PROJECT_ID` (required for mobile wallet connect): your WalletConnect Project ID
+
+Example:
+
+```bash
+flutter run \
+    --dart-define=API_BASE_URL=https://vibeguard-ai-production.up.railway.app \
+    --dart-define=WALLETCONNECT_PROJECT_ID=YOUR_ID
+```
+
 3. Run on mobile:
 ```bash
 flutter run

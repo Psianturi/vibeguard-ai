@@ -64,9 +64,12 @@ class WalletNotifier extends StateNotifier<WalletState> {
           isLoading: false,
         );
       } else {
+        final reason = _walletService.lastError;
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to connect wallet',
+          error: (reason == null || reason.isEmpty)
+              ? 'Wallet connection was not approved (or timed out).'
+              : reason,
         );
       }
     } catch (e) {
