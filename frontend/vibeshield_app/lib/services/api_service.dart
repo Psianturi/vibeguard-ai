@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../core/config.dart';
 import '../models/vibe_models.dart';
+import '../models/insight_models.dart';
 
 class ApiService {
   final Dio _dio = Dio(BaseOptions(
@@ -10,6 +11,59 @@ class ApiService {
   ));
 
   static const String _coinGeckoBaseUrl = 'https://api.coingecko.com/api/v3';
+
+  // Get detailed sentiment insights for a token
+  Future<Map<String, dynamic>> getInsights(String token, {String window = 'Daily'}) async {
+    try {
+      final response = await _dio.post(
+        AppConfig.vibeInsightsEndpoint,
+        data: {'token': token.toUpperCase(), 'window': window},
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Failed to get insights: $e');
+    }
+  }
+
+  // Get multi-token sentiment dashboard
+  Future<Map<String, dynamic>> getMultiTokenSentiment({
+    List<String>? tokens,
+    String window = 'Daily',
+  }) async {
+    try {
+      final response = await _dio.post(
+        AppConfig.vibeMultiEndpoint,
+        data: {'tokens': tokens, 'window': window},
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Failed to get multi-token sentiment: $e');
+    }
+  }
+
+
+  Future<List<ChainInfo>> getChains() async {
+    try {
+      final response = await _dio.get(AppConfig.vibeChainsEndpoint);
+      final data = response.data as Map<String, dynamic>;
+      final chains = (data['chains'] as List?) ?? [];
+      return chains.map((e) => ChainInfo.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      print('Error fetching chains: $e');
+      return _defaultChains;
+    }
+  }
+
+  static final _defaultChains = [
+    ChainInfo(id: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', network: 'Bitcoin', icon: '₿'),
+    ChainInfo(id: 'binancecoin', name: 'BNB', symbol: 'BNB', network: 'BNB Chain', icon: 'B'),
+    ChainInfo(id: 'ethereum', name: 'Ethereum', symbol: 'ETH', network: 'Ethereum', icon: 'Ξ'),
+    ChainInfo(id: 'solana', name: 'Solana', symbol: 'SOL', network: 'Solana', icon: '◎'),
+    ChainInfo(id: 'ripple', name: 'XRP', symbol: 'XRP', network: 'XRP Ledger', icon: '✕'),
+    ChainInfo(id: 'dogecoin', name: 'Dogecoin', symbol: 'DOGE', network: 'Dogecoin', icon: 'Ð'),
+    ChainInfo(id: 'sui', name: 'Sui', symbol: 'SUI', network: 'Sui', icon: '⚡'),
+    ChainInfo(id: 'tether', name: 'Tether', symbol: 'USDT', network: 'Multi-chain', icon: '₮'),
+  ];
 
   Future<VibeCheckResult> checkVibe(String token, String tokenId) async {
     try {

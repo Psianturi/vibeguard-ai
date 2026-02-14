@@ -1,0 +1,207 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+class MultiTokenDashboardWidget extends StatelessWidget {
+  final Map<String, dynamic> tokens;
+  final Function(String token, String coinGeckoId) onTokenSelected;
+  
+  const MultiTokenDashboardWidget({
+    super.key,
+    required this.tokens,
+    required this.onTokenSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '📊 Multi-Token Sentiment',
+                    style: theme.textTheme.titleLarge,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () {
+                    // Refresh will be handled by parent
+                  },
+                  tooltip: 'Refresh',
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Real-time sentiment across top tokens',
+              style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            
+            if (tokens.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text(
+                    'No sentiment data available',
+                    style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              )
+            else
+              _buildTokenGrid(context),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildTokenGrid(BuildContext context) {
+    final tokenList = tokens.entries.toList();
+    
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cols = constraints.maxWidth > 600 ? 4 : 2;
+        
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: tokenList.map((entry) {
+            return SizedBox(
+              width: (constraints.maxWidth - (12 * (cols - 1))) / cols,
+              child: _buildTokenCard(context, entry.key, entry.value),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+  
+  Widget _buildTokenCard(BuildContext context, String token, dynamic data) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    
+    final sentiment = data?['sentiment'];
+    final positive = (sentiment?['positive'] as num?)?.toDouble() ?? 0.5;
+    final sentimentDiff = (sentiment?['sentimentDiff'] as num?)?.toDouble() ?? 0;
+    
+    final vibeScore = (positive * 100).round();
+    
+    // Determine color based on sentiment
+    Color sentimentColor;
+    String sentimentLabel;
+    
+    if (vibeScore >= 70) {
+      sentimentColor = Colors.green;
+      sentimentLabel = '🟢 Bullish';
+    } else if (vibeScore >= 40) {
+      sentimentColor = Colors.orange;
+      sentimentLabel = '🟡 Neutral';
+    } else {
+      sentimentColor = Colors.red;
+      sentimentLabel = '🔴 Bearish';
+    }
+    
+    return InkWell(
+      onTap: () {
+        // Map token to coinGecko ID
+        final coinGeckoId = _getCoinGeckoId(token);
+        onTokenSelected(token, coinGeckoId);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  token,
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: sentimentColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$vibeScore',
+                    style: TextStyle(
+                      color: sentimentColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Sentiment bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: positive,
+                backgroundColor: Colors.red.withValues(alpha: 0.3),
+                valueColor: AlwaysStoppedAnimation<Color>(sentimentColor),
+                minHeight: 6,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  sentimentLabel,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: sentimentColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (sentimentDiff != 0)
+                  Text(
+                    '${sentimentDiff >= 0 ? '+' : ''}${(sentimentDiff * 100).toStringAsFixed(1)}%',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: sentimentDiff >= 0 ? Colors.green : Colors.red,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  String _getCoinGeckoId(String token) {
+    final mapping = {
+      'BTC': 'bitcoin',
+      'BNB': 'binancecoin',
+      'ETH': 'ethereum',
+      'SOL': 'solana',
+      'XRP': 'ripple',
+      'DOGE': 'dogecoin',
+      'SUI': 'sui',
+      'USDT': 'tether',
+    };
+    return mapping[token.toUpperCase()] ?? token.toLowerCase();
+  }
+}

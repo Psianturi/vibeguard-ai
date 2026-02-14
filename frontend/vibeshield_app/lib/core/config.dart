@@ -11,6 +11,11 @@ class AppConfig {
   static const String vibeCheckEndpoint = '/vibe/check';
   static const String executeSwapEndpoint = '/vibe/execute-swap';
 
+  // Endpoints for enhanced Cryptoracle data
+  static const String vibeInsightsEndpoint = '/vibe/insights';
+  static const String vibeMultiEndpoint = '/vibe/multi';
+  static const String vibeChainsEndpoint = '/vibe/chains';
+
   static const String marketPricesEndpoint = '/vibe/prices';
 
   static const String txHistoryEndpoint = '/vibe/tx-history';

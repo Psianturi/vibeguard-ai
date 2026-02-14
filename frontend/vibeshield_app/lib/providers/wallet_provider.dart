@@ -1,91 +1,99 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'wallet_adapter.dart';
+import '../services/wallet_service.dart';
 
 class WalletState {
-  final bool isSupported;
   final bool isConnected;
   final String? address;
-  final int? chainId;
+  final bool isLoading;
   final String? error;
 
-  const WalletState({
-    required this.isSupported,
-    required this.isConnected,
+  WalletState({
+    this.isConnected = false,
     this.address,
-    this.chainId,
+    this.isLoading = false,
     this.error,
   });
 
-  factory WalletState.initial({required bool isSupported}) {
-    return WalletState(isSupported: isSupported, isConnected: false);
-  }
-
   WalletState copyWith({
-    bool? isSupported,
     bool? isConnected,
     String? address,
-    int? chainId,
+    bool? isLoading,
     String? error,
   }) {
     return WalletState(
-      isSupported: isSupported ?? this.isSupported,
       isConnected: isConnected ?? this.isConnected,
       address: address ?? this.address,
-      chainId: chainId ?? this.chainId,
+      isLoading: isLoading ?? this.isLoading,
       error: error,
     );
+  }
+
+  String get shortAddress {
+    if (address == null || address!.length < 10) return address ?? '';
+    return '${address!.substring(0, 6)}...${address!.substring(address!.length - 4)}';
   }
 }
 
 class WalletNotifier extends StateNotifier<WalletState> {
-  WalletNotifier({WalletAdapter? adapter})
-      : _adapter = adapter ?? createWalletAdapter(),
-        super(const WalletState(isSupported: false, isConnected: false)) {
-    state = WalletState.initial(isSupported: _adapter.isSupported);
+  final WalletService _walletService;
+
+  WalletNotifier(this._walletService) : super(WalletState()) {
+    _init();
   }
 
-  final WalletAdapter _adapter;
+  Future<void> _init() async {
+    await _walletService.init();
+    if (_walletService.isConnected) {
+      state = state.copyWith(
+        isConnected: true,
+        address: _walletService.address,
+      );
+    }
+  }
 
   Future<void> connect() async {
-    if (!_adapter.isSupported) {
-      state = state.copyWith(
-        isSupported: false,
-        isConnected: false,
-        error:
-            'Wallet connection is supported on Web with MetaMask (window.ethereum).',
-      );
-      return;
-    }
-
+    state = state.copyWith(isLoading: true, error: null);
+    
     try {
-      final conn = await _adapter.connect();
-
-      state = state.copyWith(
-        isSupported: true,
-        isConnected: true,
-        address: conn.address,
-        chainId: conn.chainId,
-        error: null,
-      );
+      final address = await _walletService.connect();
+      
+      if (address != null) {
+        state = state.copyWith(
+          isConnected: true,
+          address: address,
+          isLoading: false,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to connect wallet',
+        );
+      }
     } catch (e) {
       state = state.copyWith(
-        isSupported: true,
-        isConnected: false,
+        isLoading: false,
         error: e.toString(),
       );
     }
   }
 
-  void disconnect() {
-    // Injected wallets can't be truly disconnected programmatically;
-    // we just clear local app state.
-    _adapter.disconnect();
-    state = WalletState.initial(isSupported: _adapter.isSupported);
+  Future<void> disconnect() async {
+    await _walletService.disconnect();
+    state = WalletState();
+  }
+
+  Future<String?> signMessage(String message) async {
+    try {
+      return await _walletService.signMessage(message);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
   }
 }
 
-final walletProvider =
-    StateNotifierProvider<WalletNotifier, WalletState>((ref) {
-  return WalletNotifier();
+final walletServiceProvider = Provider((ref) => WalletService.instance);
+
+final walletProvider = StateNotifierProvider<WalletNotifier, WalletState>((ref) {
+  return WalletNotifier(ref.read(walletServiceProvider));
 });

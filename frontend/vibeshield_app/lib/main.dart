@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'features/home/home_screen.dart';
+import 'features/navigation/main_navigation.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
         textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const MainNavigation(),
     );
   }
 }

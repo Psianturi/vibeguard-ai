@@ -112,3 +112,105 @@ class TxHistoryItem {
     );
   }
 }
+
+// Enhanced Cryptoracle Sentiment Models
+
+class CommunityActivity {
+  final int totalMessages;
+  final int interactions;
+  final int mentions;
+  final int uniqueUsers;
+  final int activeCommunities;
+
+  CommunityActivity({
+    required this.totalMessages,
+    required this.interactions,
+    required this.mentions,
+    required this.uniqueUsers,
+    required this.activeCommunities,
+  });
+
+  factory CommunityActivity.fromJson(Map<String, dynamic> json) {
+    return CommunityActivity(
+      totalMessages: (json['totalMessages'] as num?)?.toInt() ?? 0,
+      interactions: (json['interactions'] as num?)?.toInt() ?? 0,
+      mentions: (json['mentions'] as num?)?.toInt() ?? 0,
+      uniqueUsers: (json['uniqueUsers'] as num?)?.toInt() ?? 0,
+      activeCommunities: (json['activeCommunities'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class SentimentScores {
+  final double positive;
+  final double negative;
+  final double sentimentDiff;
+
+  SentimentScores({
+    required this.positive,
+    required this.negative,
+    required this.sentimentDiff,
+  });
+
+  factory SentimentScores.fromJson(Map<String, dynamic> json) {
+    return SentimentScores(
+      positive: (json['positive'] as num?)?.toDouble() ?? 0,
+      negative: (json['negative'] as num?)?.toDouble() ?? 0,
+      sentimentDiff: (json['sentimentDiff'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class SentimentSignals {
+  final double deviation;
+  final double momentum;
+  final double breakout;
+  final double priceDislocation;
+
+  SentimentSignals({
+    required this.deviation,
+    required this.momentum,
+    required this.breakout,
+    required this.priceDislocation,
+  });
+
+  factory SentimentSignals.fromJson(Map<String, dynamic> json) {
+    return SentimentSignals(
+      deviation: (json['deviation'] as num?)?.toDouble() ?? 0,
+      momentum: (json['momentum'] as num?)?.toDouble() ?? 0,
+      breakout: (json['breakout'] as num?)?.toDouble() ?? 0,
+      priceDislocation: (json['priceDislocation'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class EnhancedSentiment {
+  final String token;
+  final String window;
+  final CommunityActivity community;
+  final SentimentScores sentiment;
+  final SentimentSignals signals;
+  final int timestamp;
+
+  EnhancedSentiment({
+    required this.token,
+    required this.window,
+    required this.community,
+    required this.sentiment,
+    required this.signals,
+    required this.timestamp,
+  });
+
+  factory EnhancedSentiment.fromJson(Map<String, dynamic> json) {
+    return EnhancedSentiment(
+      token: json['token'] as String? ?? '',
+      window: json['window'] as String? ?? 'Daily',
+      community: CommunityActivity.fromJson(json['community'] ?? {}),
+      sentiment: SentimentScores.fromJson(json['sentiment'] ?? {}),
+      signals: SentimentSignals.fromJson(json['signals'] ?? {}),
+      timestamp: (json['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+}
+
+

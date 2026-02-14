@@ -142,4 +142,195 @@ router.post('/run-once', async (req, res) => {
   }
 });
 
+
+// Get detailed sentiment insights for a single token
+router.post('/insights', async (req, res) => {
+  try {
+    const { token, window = 'Daily' } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Missing token parameter' });
+    }
+
+    const [enhanced, price] = await Promise.all([
+      cryptoracle.getEnhancedSentiment(token, window),
+      coingecko.getPrice(token.toLowerCase())
+    ]);
+
+    let vibeScore = 50;
+    let finalEnhanced;
+    
+    if (enhanced && enhanced.sentiment) {
+      finalEnhanced = enhanced;
+      vibeScore = Math.round((enhanced.sentiment.positive * 100));
+    } else {
+ 
+      finalEnhanced = _generateFallbackData(token.toUpperCase());
+      vibeScore = Math.round(finalEnhanced.sentiment.positive * 100);
+    }
+
+    res.json({ 
+      token, 
+      window,
+      enhanced: finalEnhanced, 
+      price,
+      vibeScore,
+      source: enhanced && enhanced.sentiment ? 'cryptoracle' : 'fallback'
+    });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Get multi-token sentiment dashboard
+router.post('/multi', async (req, res) => {
+  try {
+    const { tokens, window = 'Daily' } = req.body;
+
+    const tokenList = tokens && Array.isArray(tokens) 
+      ? tokens 
+      : ['BTC', 'BNB', 'ETH', 'SOL', 'XRP', 'DOGE', 'SUI', 'USDT'];
+
+    const results = await cryptoracle.getMultiTokenSentiment(tokenList, window);
+
+    const data: Record<string, any> = {};
+    
+    // Generate fallback data if Cryptoracle returns null data
+    const hasValidData = Array.from(results.values()).some(v => v !== null && v?.sentiment);
+    
+    tokenList.forEach((token) => {
+      const result = results.get(token.toUpperCase());
+      
+      if (result && result.sentiment) {
+        // Use real data from Cryptoracle
+        data[token.toUpperCase()] = {
+          sentiment: {
+            positive: result.sentiment.positive,
+            negative: result.sentiment.negative,
+            sentimentDiff: result.sentiment.sentimentDiff,
+          },
+          community: result.community,
+          signals: result.signals,
+          timestamp: result.timestamp,
+        };
+      } else {
+        data[token.toUpperCase()] = _generateFallbackData(token.toUpperCase());
+      }
+    });
+
+    res.json({ 
+      ok: true, 
+      window,
+      tokens: data,
+      updatedAt: Date.now(),
+      source: hasValidData ? 'cryptoracle' : 'fallback'
+    });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+
+function _generateFallbackData(token: string): any {
+  // Seed-based pseudo-random for consistency
+  const seed = token.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const random = (i: number) => ((seed * 9301 + 49297) % 233280) / 233280 * i;
+  
+  const baseSentiment = 0.4 + random(0.4); // 0.4 - 0.8 range
+  
+  return {
+    sentiment: {
+      positive: baseSentiment,
+      negative: 1 - baseSentiment,
+      sentimentDiff: (random(0.2) - 0.1), // -0.1 to +0.1
+    },
+    community: {
+      totalMessages: Math.floor(random(50000) + 10000),
+      interactions: Math.floor(random(100000) + 20000),
+      mentions: Math.floor(random(30000) + 5000),
+      uniqueUsers: Math.floor(random(10000) + 2000),
+      activeCommunities: Math.floor(random(50) + 10),
+    },
+    signals: {
+      deviation: random(0.3) - 0.15,
+      momentum: random(0.5) - 0.25,
+      breakout: random(0.2),
+      priceDislocation: random(0.1),
+    },
+    timestamp: Date.now(),
+    isFallback: true,
+  };
+}
+
+router.get('/chains', (req, res) => {
+  res.json({
+    ok: true,
+    chains: [
+      {
+        id: 'bitcoin',
+        name: 'Bitcoin',
+        symbol: 'BTC',
+        network: 'Bitcoin',
+        icon: '₿'
+      },
+      {
+        id: 'binancecoin',
+        name: 'BNB',
+        symbol: 'BNB',
+        network: 'BNB Chain',
+        icon: 'B'
+      },
+      {
+        id: 'binancecoin',
+        name: 'BNB',
+        symbol: 'BNB',
+        network: 'opBNB',
+        icon: '🔷'
+      },
+      {
+        id: 'ethereum',
+        name: 'Ethereum',
+        symbol: 'ETH',
+        network: 'Ethereum',
+        icon: 'Ξ'
+      },
+      {
+        id: 'solana',
+        name: 'Solana',
+        symbol: 'SOL',
+        network: 'Solana',
+        icon: '◎'
+      },
+      {
+        id: 'ripple',
+        name: 'XRP',
+        symbol: 'XRP',
+        network: 'XRP Ledger',
+        icon: '✕'
+      },
+      {
+        id: 'dogecoin',
+        name: 'Dogecoin',
+        symbol: 'DOGE',
+        network: 'Dogecoin',
+        icon: 'Ð'
+      },
+      {
+        id: 'sui',
+        name: 'Sui',
+        symbol: 'SUI',
+        network: 'Sui',
+        icon: '⚡'
+      },
+      {
+        id: 'tether',
+        name: 'Tether',
+        symbol: 'USDT',
+        network: 'Multi-chain',
+        icon: '₮'
+      }
+    ]
+  });
+});
+
 export default router;

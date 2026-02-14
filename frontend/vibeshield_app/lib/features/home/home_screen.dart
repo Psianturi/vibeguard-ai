@@ -5,8 +5,12 @@ import '../../providers/vibe_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/tx_history_provider.dart';
 import '../../providers/market_prices_provider.dart';
+import '../../providers/insights_provider.dart' as insights;
 import '../../core/config.dart';
 import '../dashboard/vibe_meter_widget.dart';
+import '../dashboard/sentiment_insights_widget.dart';
+import '../dashboard/chain_selector_widget.dart';
+import '../dashboard/multi_token_dashboard_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +27,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _tokenIdFocusNode = FocusNode();
 
   bool _isSwapping = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(insights.multiTokenProvider.notifier).fetchAll();
+    });
+  }
 
   static const List<Map<String, String>> _coinGeckoPresets = [
     {'symbol': 'BTC', 'id': 'bitcoin'},
@@ -117,6 +129,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               _MarketPulseCard(),
               const SizedBox(height: 16),
+
+              _MultiTokenDashboardCard(),
+              const SizedBox(height: 16),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -134,11 +149,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Expanded(
                           child: Text(
                             walletState.isConnected
-                                ? 'Wallet: ${_short(walletState.address ?? '')}\nChainId: ${walletState.chainId ?? '-'}'
-                                : (walletState.isSupported ? 'Wallet: not connected' : 'Wallet: not supported'),
+                                ? 'Wallet: ${_short(walletState.address ?? '')}'
+                                : 'Wallet: not connected',
                           ),
                         ),
-                        if (!walletState.isConnected && walletState.isSupported)
+                        if (!walletState.isConnected)
                           ElevatedButton(
                             onPressed: () => ref.read(walletProvider.notifier).connect(),
                             child: const Text('Connect'),
@@ -251,10 +266,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onPressed: vibeState.isLoading
                           ? null
                           : () {
-                              ref.read(vibeNotifierProvider.notifier).checkVibe(
-                                    _tokenController.text.trim().toUpperCase(),
-                                    _tokenIdController.text.trim().toLowerCase(),
-                                  );
+                              final token = _tokenController.text.trim().toUpperCase();
+                              final tokenId = _tokenIdController.text.trim().toLowerCase();
+                              
+                              // Fetch both vibe check and insights
+                              ref.read(vibeNotifierProvider.notifier).checkVibe(token, tokenId);
+                              ref.read(insights.insightsProvider.notifier).fetchInsights(token);
                             },
                       child: vibeState.isLoading
                           ? const _ScanningButtonLabel()
@@ -280,6 +297,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               VibeMeterWidget(result: vibeState.result!),
               const SizedBox(height: 16),
               _buildAnalysisCard(vibeState.result!),
+              const SizedBox(height: 16),
+              _SentimentInsightsCard(),
             ],
 
             if (walletState.isConnected && (walletState.address?.isNotEmpty ?? false)) ...[
@@ -341,7 +360,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                         setState(() => _isSwapping = true);
                         try {
-                          final api = ref.read(apiServiceProvider);
+                          final api = ref.read(insights.apiServiceProvider);
                           final result = await api.executeSwap(
                             userAddress: userAddress,
                             tokenAddress: tokenAddress,
@@ -477,6 +496,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  // Multi-Token Dashboard Card
+  Widget _MultiTokenDashboardCard() {
+    final multiTokenState = ref.watch(insights.multiTokenProvider);
+    
+    return MultiTokenDashboardWidget(
+      tokens: multiTokenState.tokens ?? {},
+      onTokenSelected: (token, coinGeckoId) {
+        _applyPreset(symbol: token, coinGeckoId: coinGeckoId);
+        ref.read(vibeNotifierProvider.notifier).checkVibe(
+          token,
+          coinGeckoId,
+        );
+      },
+    );
+  }
+
+
+  Widget _SentimentInsightsCard() {
+    final insightsState = ref.watch(insights.insightsProvider);
+    
+    if (insightsState.isLoading) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+    
+    if (insightsState.data != null) {
+      return SentimentInsightsWidget(insightsData: insightsState.data!);
+    }
+    
+    return const SizedBox.shrink();
   }
 
   String _short(String s) {
