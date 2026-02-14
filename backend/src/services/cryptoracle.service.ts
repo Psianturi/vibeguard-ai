@@ -7,31 +7,34 @@ export class CryptoracleService {
 
   constructor() {
     this.apiKey = process.env.CRYPTORACLE_API_KEY || '';
-    this.baseUrl = process.env.CRYPTORACLE_BASE_URL || 'https://api.cryptoracle.io/v1';
+    this.baseUrl = process.env.CRYPTORACLE_BASE_URL || 'https://service.cryptoracle.network';
   }
 
   private getHeaders() {
     return this.apiKey
-      ? { 'X-API-Key': this.apiKey, 'Content-Type': 'application/json' }
+      ? { 'X-API-KEY': this.apiKey, 'Content-Type': 'application/json', Accept: 'application/json' }
       : { 'Content-Type': 'application/json' };
   }
 
   async getSentiment(token: string): Promise<SentimentData> {
-    try {
-      const url = `${this.baseUrl}/sentiment/${encodeURIComponent(token)}`;
-      const response = await axios.get(url, { headers: this.getHeaders(), timeout: 15000 });
+    const symbol = String(token || '').trim().toUpperCase();
+    if (!symbol) return { token: symbol, score: 50, timestamp: Date.now(), sources: [] };
 
-      console.log('Cryptoracle response for', token, ':', JSON.stringify(response.data).slice(0, 200));
+    try {
+      const enhanced = await this.getEnhancedSentiment(symbol, 'Daily');
+      if (!enhanced) {
+        return { token: symbol, score: 50, timestamp: Date.now(), sources: [] };
+      }
 
       return {
-        token,
-        score: response.data.score ?? 50,
+        token: symbol,
+        score: Math.round((enhanced.sentiment.positive ?? 0.5) * 100),
         timestamp: Date.now(),
-        sources: response.data.sources || []
+        sources: []
       };
     } catch (error: any) {
       console.error('Cryptoracle error:', error?.message || error?.response?.status || 'Unknown');
-      return { token, score: 50, timestamp: Date.now(), sources: [] };
+      return { token: symbol, score: 50, timestamp: Date.now(), sources: [] };
     }
   }
 
@@ -42,52 +45,102 @@ export class CryptoracleService {
    */
   async getEnhancedSentiment(token: string, window: string = 'Daily'): Promise<EnhancedSentiment | null> {
     try {
+      const symbol = String(token || '').trim().toUpperCase();
+      if (!symbol) return null;
+      if (!this.apiKey) return null;
+
       const headers = this.getHeaders();
+      const endpointUrl = this.resolveOpenApiEndpointUrl();
+      const timeType = this.windowToTimeType(window);
+      const { startTime, endTime } = this.getTimeRange(timeType);
 
-      // Community Activity endpoints
-      const [messagesRes, interactionsRes, mentionsRes, usersRes, communitiesRes] = await Promise.allSettled([
-        axios.get(`${this.baseUrl}/metrics/CO-A-01-03`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-A-01-04`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-A-01-05`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-A-01-07`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-A-01-08`, { params: { token, window }, headers, timeout: 10000 }),
-      ]);
+      const endpoints = [
+        // Community
+        'CO-A-01-03',
+        'CO-A-01-04',
+        'CO-A-01-05',
+        'CO-A-01-07',
+        'CO-A-01-08',
+        // Scores
+        'CO-A-02-01',
+        'CO-A-02-02',
+        'CO-A-02-03',
+        // Signals
+        'CO-S-01-01',
+        'CO-S-01-02',
+        'CO-S-01-03',
+        'CO-S-01-05'
+      ];
 
-      // Sentiment Score endpoints
-      const [positiveRes, negativeRes, diffRes] = await Promise.allSettled([
-        axios.get(`${this.baseUrl}/metrics/CO-A-02-01`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-A-02-02`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-A-02-03`, { params: { token, window }, headers, timeout: 10000 }),
-      ]);
+      const response = await axios.post(
+        endpointUrl,
+        {
+          apiKey: this.apiKey,
+          endpoints,
+          startTime,
+          endTime,
+          timeType,
+          token: [symbol]
+        },
+        { headers, timeout: 20000 }
+      );
 
-      // Sentiment Signal endpoints
-      const [deviationRes, momentumRes, breakoutRes, dislocationRes] = await Promise.allSettled([
-        axios.get(`${this.baseUrl}/metrics/CO-S-01-01`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-S-01-02`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-S-01-03`, { params: { token, window }, headers, timeout: 10000 }),
-        axios.get(`${this.baseUrl}/metrics/CO-S-01-05`, { params: { token, window }, headers, timeout: 10000 }),
-      ]);
+      const records = this.normalizeOpenApiRecords(response.data);
+      if (records.length === 0) return null;
+
+      const byEndpoint = new Map<string, number>();
+      for (const r of records) {
+        if (String(r.token || '').toUpperCase() !== symbol) continue;
+        const endpoint = String(
+          (r as any).endpoint || (r as any).endpoints || (r as any).endpointId || (r as any).endpoint_id || ''
+        ).trim();
+        if (!endpoint) continue;
+        const v = this.toNumber(r.value);
+        if (v === null) continue;
+        byEndpoint.set(endpoint, v);
+      }
+
+      const v = (endpoint: string) => byEndpoint.get(endpoint) ?? 0;
 
       const community: CommunityActivity = {
-        totalMessages: this.extractValue(messagesRes, 'value'),
-        interactions: this.extractValue(interactionsRes, 'value'),
-        mentions: this.extractValue(mentionsRes, 'value'),
-        uniqueUsers: this.extractValue(usersRes, 'value'),
-        activeCommunities: this.extractValue(communitiesRes, 'value'),
+        totalMessages: Math.round(v('CO-A-01-03')),
+        interactions: Math.round(v('CO-A-01-04')),
+        mentions: Math.round(v('CO-A-01-05')),
+        uniqueUsers: Math.round(v('CO-A-01-07')),
+        activeCommunities: Math.round(v('CO-A-01-08'))
       };
 
       const sentiment: SentimentScores = {
-        positive: this.extractValue(positiveRes, 'value') / 100, // Convert to 0-1 range
-        negative: this.extractValue(negativeRes, 'value') / 100,
-        sentimentDiff: this.extractValue(diffRes, 'value') / 100,
+        positive: v('CO-A-02-01') / 100,
+        negative: v('CO-A-02-02') / 100,
+        sentimentDiff: v('CO-A-02-03') / 100
       };
 
       const signals: SentimentSignals = {
-        deviation: this.extractValue(deviationRes, 'value'),
-        momentum: this.extractValue(momentumRes, 'value'),
-        breakout: this.extractValue(breakoutRes, 'value'),
-        priceDislocation: this.extractValue(dislocationRes, 'value'),
+        deviation: v('CO-S-01-01'),
+        momentum: v('CO-S-01-02'),
+        breakout: v('CO-S-01-03'),
+        priceDislocation: v('CO-S-01-05')
       };
+
+      const looksEmpty =
+        community.totalMessages === 0 &&
+        community.interactions === 0 &&
+        community.mentions === 0 &&
+        community.uniqueUsers === 0 &&
+        community.activeCommunities === 0 &&
+        sentiment.positive === 0 &&
+        sentiment.negative === 0 &&
+        sentiment.sentimentDiff === 0 &&
+        signals.deviation === 0 &&
+        signals.momentum === 0 &&
+        signals.breakout === 0 &&
+        signals.priceDislocation === 0;
+
+      // If all values come back as zeros, treat as invalid so callers can use fallback.
+      if (looksEmpty) {
+        return null;
+      }
 
       console.log(`Cryptoracle enhanced data for ${token}:`, { community, sentiment, signals });
 
@@ -105,12 +158,78 @@ export class CryptoracleService {
     }
   }
 
- 
-  private extractValue(result: PromiseSettledResult<any>, key: string): number {
-    if (result.status === 'fulfilled' && result.value?.data) {
-      return Number(result.value.data[key]) || 0;
+  private resolveOpenApiEndpointUrl(): string {
+    const raw = String(this.baseUrl || '').trim().replace(/\/+$/, '');
+    if (!raw) return 'https://service.cryptoracle.network/openapi/v2.1/endpoint';
+    if (raw.includes('/openapi/v2.1/endpoint')) return raw;
+    return `${raw}/openapi/v2.1/endpoint`;
+  }
+
+  private windowToTimeType(window: string): string {
+    switch (String(window || '').trim()) {
+      case '15M':
+        return '15m';
+      case '1H':
+        return '1h';
+      case '4H':
+        return '4h';
+      case 'Daily':
+      default:
+        return '1d';
     }
-    return 0;
+  }
+
+  private getTimeRange(timeType: string): { startTime: string; endTime: string } {
+    const now = new Date();
+    const end = now;
+    const ms =
+      timeType === '15m'
+        ? 15 * 60 * 1000
+        : timeType === '1h'
+          ? 60 * 60 * 1000
+          : timeType === '4h'
+            ? 4 * 60 * 60 * 1000
+            : 24 * 60 * 60 * 1000;
+    const start = new Date(end.getTime() - ms);
+    return { startTime: this.formatUtc(start), endTime: this.formatUtc(end) };
+  }
+
+  private formatUtc(d: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+  }
+
+  private toNumber(v: any): number | null {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+    return null;
+  }
+
+  private normalizeOpenApiRecords(payload: any): Array<any> {
+    const root = payload?.data ?? payload?.result ?? payload;
+
+    const unwrap = (x: any): any => {
+      if (typeof x === 'string') {
+        try {
+          return JSON.parse(x);
+        } catch {
+          return x;
+        }
+      }
+      return x;
+    };
+
+    const unwrapped = unwrap(root);
+    const data = unwrap(unwrapped?.data ?? unwrapped?.result ?? unwrapped);
+
+    if (Array.isArray(data)) return data as any[];
+    if (Array.isArray(data?.records)) return data.records as any[];
+    if (Array.isArray(data?.list)) return data.list as any[];
+    if (Array.isArray(data?.items)) return data.items as any[];
+    return [];
   }
 
 
