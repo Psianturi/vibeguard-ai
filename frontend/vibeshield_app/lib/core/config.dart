@@ -42,10 +42,12 @@ class AppConfig {
 
   static const String rpcUrl = String.fromEnvironment(
     'RPC_URL',
-    defaultValue: 'https://bsc-dataseed.binance.org/',
+
+    defaultValue: 'https://bsc-testnet-rpc.publicnode.com',
   );
 
-  static const int chainId = int.fromEnvironment('CHAIN_ID', defaultValue: 56);
+  // Default to BSC Testnet (97). Override via --dart-define=CHAIN_ID=56 if needed.
+  static const int chainId = int.fromEnvironment('CHAIN_ID', defaultValue: 97);
 
   static String get explorerTxBaseUrl {
     const env =
