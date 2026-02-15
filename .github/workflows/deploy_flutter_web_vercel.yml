@@ -3,10 +3,6 @@ name: Deploy Flutter Web to Vercel
 on:
   push:
     branches: [main]
-    paths:
-      - "frontend/vibeshield_app/**"
-      - "vercel.json"
-      - ".github/workflows/deploy_flutter_web_vercel.yml"
   workflow_dispatch: {}
 
 concurrency:
