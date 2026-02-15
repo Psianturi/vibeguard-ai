@@ -153,19 +153,19 @@ class ApiService {
   }
 
   Future<AgentDemoConfig?> getAgentDemoConfig() async {
-    try {
-      final response = await _dio.get(AppConfig.agentDemoConfigEndpoint);
-      final data = response.data;
-      if (data is Map<String, dynamic> && data['ok'] == true) {
-        final cfg = data['config'];
-        if (cfg is Map) {
-          return AgentDemoConfig.fromJson(cfg.cast<String, dynamic>());
-        }
+    final response = await _dio.get(AppConfig.agentDemoConfigEndpoint);
+    final data = response.data;
+    if (data is Map<String, dynamic> && data['ok'] == true) {
+      final cfg = data['config'];
+      if (cfg is Map) {
+        return AgentDemoConfig.fromJson(cfg.cast<String, dynamic>());
       }
-      return null;
-    } catch (_) {
-      return null;
     }
+
+    final err = (data is Map && data['error'] != null)
+        ? data['error'].toString()
+        : 'Invalid response';
+    throw Exception('Failed to load agent config: $err');
   }
 
   Future<Map<String, dynamic>> executeAgentProtection({

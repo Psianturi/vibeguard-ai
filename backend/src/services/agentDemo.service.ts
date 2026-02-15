@@ -56,10 +56,14 @@ export class AgentDemoService {
 
     // Common run locations: repo root, backend/, backend/dist
     const cwd = process.cwd();
+    // Railway often deploys only the backend/ folder in monorepos.
+    candidates.push(path.join(cwd, 'deployments', 'agent-demo-97.json'));
+    candidates.push(path.join(cwd, 'backend', 'deployments', 'agent-demo-97.json'));
     candidates.push(path.join(cwd, 'contracts', 'deployments', 'agent-demo-97.json'));
     candidates.push(path.join(cwd, '..', 'contracts', 'deployments', 'agent-demo-97.json'));
 
     // Resolve from __dirname as additional fallback.
+    candidates.push(path.resolve(__dirname, '..', '..', 'deployments', 'agent-demo-97.json'));
     candidates.push(path.resolve(__dirname, '..', '..', '..', 'contracts', 'deployments', 'agent-demo-97.json'));
     candidates.push(path.resolve(__dirname, '..', '..', '..', '..', 'contracts', 'deployments', 'agent-demo-97.json'));
 

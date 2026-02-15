@@ -32,7 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isSwapping = false;
   bool _agentBusy = false;
   int _selectedStrategy = 1; // 1 = TIGHT, 2 = LOOSE
-  AgentDemoConfig? _agentConfig;
+  Future<AgentDemoConfig?>? _agentConfigFuture;
 
   @override
   void initState() {
@@ -438,11 +438,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final api = ref.read(insights.apiServiceProvider);
     final walletService = ref.read(walletServiceProvider);
 
-    Future<void> ensureConfig() async {
-      if (_agentConfig != null) return;
-      final cfg = await api.getAgentDemoConfig();
-      if (!mounted) return;
-      setState(() => _agentConfig = cfg);
+    String explorerTxUrl(String txHash, {int? chainId}) {
+      final cid = chainId ?? AppConfig.chainId;
+      if (cid == 97) return 'https://testnet.bscscan.com/tx/$txHash';
+      if (cid == 56) return 'https://bscscan.com/tx/$txHash';
+      final base = AppConfig.explorerTxBaseUrl;
+      return base.isNotEmpty ? '$base$txHash' : '';
+    }
+
+    void retryLoadConfig() {
+      setState(() {
+        _agentConfigFuture = api.getAgentDemoConfig();
+      });
     }
 
     Future<void> runGuarded(Future<void> Function() action) async {
@@ -463,12 +470,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             Text('Agent', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            FutureBuilder<void>(
-              future: ensureConfig(),
-              builder: (context, _) {
-                final cfg = _agentConfig;
-                if (cfg == null) {
+            FutureBuilder<AgentDemoConfig?>(
+              future: _agentConfigFuture ??= api.getAgentDemoConfig(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
                   return const Text('Loading on-chain config...');
+                }
+
+                if (snapshot.hasError) {
+                  final msg = snapshot.error.toString();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Failed to load on-chain config.'),
+                      const SizedBox(height: 6),
+                      Text(
+                        msg,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _agentBusy ? null : retryLoadConfig,
+                          child: const Text('Retry'),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                final cfg = snapshot.data;
+                if (cfg == null) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('No config returned from backend.'),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _agentBusy ? null : retryLoadConfig,
+                          child: const Text('Retry'),
+                        ),
+                      ),
+                    ],
+                  );
                 }
 
                 final feeWei = cfg.creationFeeWei;
@@ -531,10 +580,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     return;
                                   }
 
-                                  final url = AppConfig
-                                          .explorerTxBaseUrl.isNotEmpty
-                                      ? '${AppConfig.explorerTxBaseUrl}$txHash'
-                                      : '';
+                                  final url =
+                                      AppConfig.explorerTxBaseUrl.isNotEmpty
+                                          ? explorerTxUrl(txHash,
+                                              chainId: cfg.chainId)
+                                          : explorerTxUrl(txHash,
+                                              chainId: cfg.chainId);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('Spawn tx: $txHash'),
@@ -581,10 +632,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     return;
                                   }
 
-                                  final url = AppConfig
-                                          .explorerTxBaseUrl.isNotEmpty
-                                      ? '${AppConfig.explorerTxBaseUrl}$txHash'
-                                      : '';
+                                  final url =
+                                      AppConfig.explorerTxBaseUrl.isNotEmpty
+                                          ? explorerTxUrl(txHash,
+                                              chainId: cfg.chainId)
+                                          : explorerTxUrl(txHash,
+                                              chainId: cfg.chainId);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('Approve tx: $txHash'),
@@ -653,10 +706,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   if (txHash.isNotEmpty) {
                                     ref.invalidate(
                                         txHistoryProvider(userAddress));
-                                    final url = AppConfig
-                                            .explorerTxBaseUrl.isNotEmpty
-                                        ? '${AppConfig.explorerTxBaseUrl}$txHash'
-                                        : '';
+                                    final url = explorerTxUrl(txHash,
+                                        chainId: cfg.chainId);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text('Protected. Tx: $txHash'),
