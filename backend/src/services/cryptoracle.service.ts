@@ -413,18 +413,56 @@ export class CryptoracleService {
   private getTimeRange(timeType: string): { startTime: string; endTime: string } {
     // Cryptoracle docs require all time fields in UTC+8 (Beijing Time): YYYY-MM-DD HH:mm:ss
     const now = new Date();
-    const end = now;
+
+    const latencyMs = Number(process.env.CRYPTORACLE_DATA_LATENCY_MS ?? 10 * 60 * 1000);
+    const safeLatencyMs = Number.isFinite(latencyMs) && latencyMs >= 0 ? latencyMs : 10 * 60 * 1000;
+    const end = this.alignEndTimeForTimeType(new Date(now.getTime() - safeLatencyMs), timeType);
     const ms =
       timeType === '15m' ? 15 * 60 * 1000 :
       timeType === '1h' ? 60 * 60 * 1000 :
       timeType === '4h' ? 4 * 60 * 60 * 1000 :
       24 * 60 * 60 * 1000;
-    const start = new Date(end.getTime() - ms);
+    const start = this.alignStartTimeForTimeType(new Date(end.getTime() - ms), timeType);
     return { startTime: this.formatBeijing(start), endTime: this.formatBeijing(end) };
   }
 
+  private alignEndTimeForTimeType(d: Date, timeType: string): Date {
+    const bjOffsetMs = 8 * 60 * 60 * 1000;
+    const bjMs = d.getTime() + bjOffsetMs;
+
+    if (timeType === '15m') {
+      const step = 15 * 60 * 1000;
+      return new Date(Math.floor(bjMs / step) * step - bjOffsetMs);
+    }
+    if (timeType === '1h') {
+      const step = 60 * 60 * 1000;
+      return new Date(Math.floor(bjMs / step) * step - bjOffsetMs);
+    }
+    if (timeType === '4h') {
+      const step = 4 * 60 * 60 * 1000;
+      return new Date(Math.floor(bjMs / step) * step - bjOffsetMs);
+    }
+
+    // Daily windows in the API commonly align to UTC day boundaries (shown as 08:00 in Beijing time).
+    // Align to 08:00 Beijing of the most recently completed boundary.
+    const bjDate = new Date(bjMs);
+    const y = bjDate.getUTCFullYear();
+    const m = bjDate.getUTCMonth();
+    const day = bjDate.getUTCDate();
+    const hour = bjDate.getUTCHours();
+    const boundaryDay = hour >= 8 ? day : day - 1;
+    const boundaryBjMs = Date.UTC(y, m, boundaryDay, 8, 0, 0, 0);
+    return new Date(boundaryBjMs - bjOffsetMs);
+  }
+
+  private alignStartTimeForTimeType(d: Date, timeType: string): Date {
+    // For consistency, use the same alignment rules as endTime.
+    // This avoids requesting windows that straddle partial/incomplete periods.
+    return this.alignEndTimeForTimeType(d, timeType);
+  }
+
   private formatBeijing(d: Date): string {
-    // Represent the instant in a fixed UTC+8 wall-clock string.
+
     const bj = new Date(d.getTime() + 8 * 60 * 60 * 1000);
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${bj.getUTCFullYear()}-${pad(bj.getUTCMonth() + 1)}-${pad(bj.getUTCDate())} ${pad(bj.getUTCHours())}:${pad(bj.getUTCMinutes())}:${pad(bj.getUTCSeconds())}`;
