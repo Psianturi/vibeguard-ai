@@ -411,6 +411,7 @@ export class CryptoracleService {
   }
 
   private getTimeRange(timeType: string): { startTime: string; endTime: string } {
+    // Cryptoracle docs require all time fields in UTC+8 (Beijing Time): YYYY-MM-DD HH:mm:ss
     const now = new Date();
     const end = now;
     const ms =
@@ -419,12 +420,14 @@ export class CryptoracleService {
       timeType === '4h' ? 4 * 60 * 60 * 1000 :
       24 * 60 * 60 * 1000;
     const start = new Date(end.getTime() - ms);
-    return { startTime: this.formatUtc(start), endTime: this.formatUtc(end) };
+    return { startTime: this.formatBeijing(start), endTime: this.formatBeijing(end) };
   }
 
-  private formatUtc(d: Date): string {
+  private formatBeijing(d: Date): string {
+    // Represent the instant in a fixed UTC+8 wall-clock string.
+    const bj = new Date(d.getTime() + 8 * 60 * 60 * 1000);
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    return `${bj.getUTCFullYear()}-${pad(bj.getUTCMonth() + 1)}-${pad(bj.getUTCDate())} ${pad(bj.getUTCHours())}:${pad(bj.getUTCMinutes())}:${pad(bj.getUTCSeconds())}`;
   }
 
   private toNumber(v: any): number | null {
@@ -438,19 +441,56 @@ export class CryptoracleService {
 
   private normalizeOpenApiRecords(payload: any): Array<any> {
     const root = payload?.data ?? payload?.result ?? payload;
+
     const unwrap = (x: any): any => {
       if (typeof x === 'string') {
-        try { return JSON.parse(x); } catch { return x; }
+        try {
+          return JSON.parse(x);
+        } catch {
+          return x;
+        }
       }
       return x;
     };
+
     const unwrapped = unwrap(root);
     const data = unwrap(unwrapped?.data ?? unwrapped?.result ?? unwrapped);
-    if (Array.isArray(data)) return data as any[];
-    if (Array.isArray(data?.records)) return data.records as any[];
-    if (Array.isArray(data?.list)) return data.list as any[];
-    if (Array.isArray(data?.items)) return data.items as any[];
-    return [];
+
+    const array =
+        Array.isArray(data) ? data :
+        Array.isArray(data?.records) ? data.records :
+        Array.isArray(data?.list) ? data.list :
+        Array.isArray(data?.items) ? data.items :
+        [];
+
+    // Docs response example returns:
+    // [ { token, timePeriods: [ { startTime, endTime, data: [ {endpoint,value} ] } ] } ]
+    // Flatten this into per-endpoint records so the rest of the pipeline works.
+    if (array.length > 0 && typeof array[0] === 'object' && Array.isArray((array[0] as any)?.timePeriods)) {
+      const flattened: any[] = [];
+      for (const block of array as any[]) {
+        const token = String(block?.token ?? '').trim().toUpperCase();
+        const timePeriods = Array.isArray(block?.timePeriods) ? block.timePeriods : [];
+        for (const period of timePeriods) {
+          const pStart = String(period?.startTime ?? '').trim();
+          const pEnd = String(period?.endTime ?? '').trim();
+          const rows = Array.isArray(period?.data) ? period.data : [];
+          for (const row of rows) {
+            flattened.push({
+              token,
+              endpoint: row?.endpoint,
+              value: row?.value,
+              startTime: pStart,
+              endTime: pEnd,
+              time: pEnd || pStart,
+            });
+          }
+        }
+      }
+      return flattened;
+    }
+
+    return array as any[];
   }
 
   async getMultiTokenSentiment(tokens: string[], window: string = 'Daily'): Promise<Map<string, EnhancedSentiment | null>> {
