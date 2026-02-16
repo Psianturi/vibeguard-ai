@@ -9,6 +9,7 @@ import { appendTxHistory, loadTxHistory } from '../storage/txHistory';
 import { runMonitorOnce } from '../monitor/vibeMonitor';
 import { ethers } from 'ethers';
 import rateLimit from 'express-rate-limit';
+import { requireApiAuth } from '../middleware/apiAuth';
 
 const router = Router();
 
@@ -116,7 +117,7 @@ router.get('/agent-demo/config', async (req, res) => {
   }
 });
 
-router.post('/agent-demo/execute-protection', async (req, res) => {
+router.post('/agent-demo/execute-protection', requireApiAuth, async (req, res) => {
   try {
     const { userAddress, amountWbnb } = req.body;
     const result = await getAgentDemo().executeProtection(
@@ -229,7 +230,7 @@ router.get('/prices', async (req, res) => {
   }
 });
 
-router.post('/execute-swap', async (req, res) => {
+router.post('/execute-swap', requireApiAuth, async (req, res) => {
   try {
     const { userAddress, tokenAddress, amount } = req.body;
     const result = await getBlockchain().emergencySwap(userAddress, tokenAddress, amount);
@@ -265,7 +266,7 @@ router.get('/subscriptions', (req, res) => {
   res.json(loadSubscriptions());
 });
 
-router.post('/subscribe', (req, res) => {
+router.post('/subscribe', requireApiAuth, (req, res) => {
   const {
     userAddress,
     tokenSymbol,

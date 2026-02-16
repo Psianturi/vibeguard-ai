@@ -14,7 +14,7 @@ const corsOptions: cors.CorsOptions = {
     ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
     : true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY', 'X-API-TS', 'X-API-SIGN'],
   optionsSuccessStatus: 204
 };
 
