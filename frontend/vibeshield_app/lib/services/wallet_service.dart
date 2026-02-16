@@ -220,9 +220,8 @@ class WalletService {
         return _currentAddress;
       }
 
-      // Always propose mainnet (56) which all wallets support.
-      // Session chainId is tracked separately; Agent demo gates on correct chain.
-      final primaryChains = const ['eip155:56'];
+      // Propose the configured chain to keep WalletConnect in sync with app config.
+      final primaryChains = ['eip155:${AppConfig.chainId}'];
 
       return await attemptConnect(requiredChains: primaryChains);
     } on TimeoutException {
