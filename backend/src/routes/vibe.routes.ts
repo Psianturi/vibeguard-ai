@@ -486,7 +486,7 @@ router.get('/chains', (req, res) => {
         icon: 'B'
       },
       {
-        id: 'binancecoin',
+        id: 'opbnb',
         name: 'BNB',
         symbol: 'BNB',
         network: 'opBNB',
